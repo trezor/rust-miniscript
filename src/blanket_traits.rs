@@ -13,15 +13,15 @@
 //!
 
 use core::str::FromStr;
-use core::{fmt, hash};
+use core::hash;
 
 use crate::MiniscriptKey;
 
-/// Auxiliary trait indicating that a type implements both `Debug`, `Display`, `Send` and `Sync`.
+/// Auxiliary trait indicating that a type implements both `Display`, `Send` and `Sync`.
 // NOTE: `Send` / `Sync` is required to maintain compatibility with downstream error handling libraries.
-pub trait StaticDebugAndDisplay: fmt::Debug + fmt::Display + Send + Sync + 'static {}
+pub trait StaticDebugAndDisplay: Send + Sync + 'static {}
 
-impl<T: fmt::Debug + fmt::Display + Send + Sync + 'static> StaticDebugAndDisplay for T {}
+impl<T: Send + Sync + 'static> StaticDebugAndDisplay for T {}
 
 /// Blanket trait describing a key where all associated types implement `FromStr`,
 /// and all `FromStr` errors can be displayed.
@@ -38,8 +38,6 @@ pub trait FromStrKey:
         + Clone
         + Eq
         + Ord
-        + fmt::Display
-        + fmt::Debug
         + hash::Hash;
     /// Dummy type. Do not use.
     type _Sha256FromStrErr: StaticDebugAndDisplay;
@@ -48,8 +46,6 @@ pub trait FromStrKey:
         + Clone
         + Eq
         + Ord
-        + fmt::Display
-        + fmt::Debug
         + hash::Hash;
     /// Dummy type. Do not use.
     type _Hash256FromStrErr: StaticDebugAndDisplay;
@@ -58,8 +54,6 @@ pub trait FromStrKey:
         + Clone
         + Eq
         + Ord
-        + fmt::Display
-        + fmt::Debug
         + hash::Hash;
     /// Dummy type. Do not use.
     type _Ripemd160FromStrErr: StaticDebugAndDisplay;
@@ -68,8 +62,6 @@ pub trait FromStrKey:
         + Clone
         + Eq
         + Ord
-        + fmt::Display
-        + fmt::Debug
         + hash::Hash;
     /// Dummy type. Do not use.
     type _Hash160FromStrErr: StaticDebugAndDisplay;

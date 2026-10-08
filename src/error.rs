@@ -3,10 +3,6 @@
 
 //! Errors
 
-use core::fmt;
-#[cfg(feature = "std")]
-use std::error;
-
 use crate::blanket_traits::StaticDebugAndDisplay;
 use crate::primitives::absolute_locktime::AbsLockTimeError;
 use crate::primitives::relative_locktime::RelLockTimeError;
@@ -14,7 +10,6 @@ use crate::Box;
 
 /// An error parsing a Miniscript object (policy, descriptor or miniscript)
 /// from a string.
-#[derive(Debug)]
 pub enum ParseError {
     /// Invalid absolute locktime
     AbsoluteLockTime(AbsLockTimeError),
@@ -44,29 +39,4 @@ impl From<crate::ParseNumError> for ParseError {
 
 impl From<crate::ParseTreeError> for ParseError {
     fn from(e: crate::ParseTreeError) -> Self { Self::Tree(e) }
-}
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ParseError::AbsoluteLockTime(ref e) => e.fmt(f),
-            ParseError::RelativeLockTime(ref e) => e.fmt(f),
-            ParseError::FromStr(ref e) => e.fmt(f),
-            ParseError::Num(ref e) => e.fmt(f),
-            ParseError::Tree(ref e) => e.fmt(f),
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl error::Error for ParseError {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        match self {
-            ParseError::AbsoluteLockTime(ref e) => Some(e),
-            ParseError::RelativeLockTime(ref e) => Some(e),
-            ParseError::FromStr(..) => None,
-            ParseError::Num(ref e) => Some(e),
-            ParseError::Tree(ref e) => Some(e),
-        }
-    }
 }

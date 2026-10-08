@@ -5,9 +5,7 @@
 //! Functionality to parse a Bitcoin Script into a `Miniscript`
 //!
 
-use core::{fmt, mem};
-#[cfg(feature = "std")]
-use std::error;
+use core::mem;
 
 use bitcoin::hashes::{hash160, ripemd160, sha256, Hash};
 use sync::Arc;
@@ -18,8 +16,6 @@ use crate::miniscript::limits::{MAX_PUBKEYS_IN_CHECKSIGADD, MAX_PUBKEYS_PER_MULT
 use crate::miniscript::ScriptContext;
 use crate::prelude::*;
 use crate::primitives::threshold;
-#[cfg(doc)]
-use crate::Descriptor;
 use crate::{
     hash256, AbsLockTime, Error, Miniscript, MiniscriptKey, RelLockTime, Threshold, ToPublicKey,
 };
@@ -52,7 +48,7 @@ mod private {
     impl Sealed for bitcoin::secp256k1::XOnlyPublicKey {}
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 enum NonTerm {
     Expression,
     WExpression,
@@ -280,14 +276,13 @@ macro_rules! match_token {
             $(
                 Some($first) => match_token!($tokens $(,$rest)* => $sub,),
             )*
-            Some(other) => return Err(Error::Unexpected(other.to_string())),
+            Some(_other) => return Err(Error::Unexpected),
             None => return Err(Error::UnexpectedStart),
         }
     };
 }
 
 ///Vec representing terminals stack while decoding.
-#[derive(Debug)]
 struct TerminalStack<Pk: MiniscriptKey, Ctx: ScriptContext>(Vec<Miniscript<Pk, Ctx>>);
 
 impl<Pk: MiniscriptKey, Ctx: ScriptContext> TerminalStack<Pk, Ctx> {
@@ -700,29 +695,10 @@ fn is_and_v(tokens: &mut TokenIter) -> bool {
 }
 
 /// Decoding error while parsing keys
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum KeyError {
     /// Bitcoin PublicKey parse error
     Full(bitcoin::key::FromSliceError),
     /// Xonly key parse Error
     XOnly(bitcoin::secp256k1::Error),
-}
-
-impl fmt::Display for KeyError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Full(e) => e.fmt(f),
-            Self::XOnly(e) => e.fmt(f),
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl error::Error for KeyError {
-    fn cause(&self) -> Option<&(dyn error::Error + 'static)> {
-        match self {
-            Self::Full(e) => Some(e),
-            Self::XOnly(e) => Some(e),
-        }
-    }
 }

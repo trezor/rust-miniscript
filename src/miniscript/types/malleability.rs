@@ -8,7 +8,7 @@
 /// Affects both correctness and malleability-freeness,
 /// since we assume 3rd parties are able to produce dissatisfactions
 /// for all fragments.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Dissat {
     /// Fragment has no dissatisfactions and will abort given non-satisfying
     /// input.
@@ -53,7 +53,7 @@ impl Dissat {
 
 /// Structure representing the type properties of a fragment which have
 /// relevance to malleability analysis
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Malleability {
     /// Properties of dissatisfying inputs
     pub dissat: Dissat,

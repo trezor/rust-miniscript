@@ -5,15 +5,13 @@
 //! Translates a script into a reversed sequence of tokens
 //!
 
-use core::fmt;
 
 use bitcoin::blockdata::{opcodes, script};
-use bitcoin::hex::DisplayHex as _;
 
 use crate::prelude::*;
 
 /// Atom of a tokenized version of a script
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 #[allow(missing_docs)]
 pub enum Token {
     BoolAnd,
@@ -50,20 +48,7 @@ pub enum Token {
     Bytes65([u8; 65]),
 }
 
-impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Token::Num(n) => write!(f, "#{}", n),
-            Token::Hash20(b) => write!(f, "{}", b.as_hex()),
-            Token::Bytes32(b) => write!(f, "{}", b.as_hex()),
-            Token::Bytes33(b) => write!(f, "{}", b.as_hex()),
-            Token::Bytes65(b) => write!(f, "{}", b.as_hex()),
-            x => write!(f, "{:?}", x),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 /// Iterator that goes through a vector of tokens backward (our parser wants to read
 /// backward and this is more efficient anyway since we can use `Vec::pop()`).
 pub struct TokenIter(Vec<Token>);
@@ -282,7 +267,7 @@ pub fn lex(script: &'_ script::Script) -> Result<Vec<Token>, Error> {
 }
 
 /// Lexer error.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Error {
     /// Parsed a negative number.
     InvalidInt {
@@ -304,29 +289,4 @@ pub enum Error {
     NonMinimalVerify(Token),
     /// Error iterating through script.
     Script(bitcoin::script::Error),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
-            Self::Script(ref e) => e.fmt(f),
-            Self::InvalidInt { ref bytes, ref err } => write!(f, "push {} of length {} is not a key, hash or minimal integer: {}", bytes.as_bytes().as_hex(), bytes.len(), err),
-            Self::InvalidOpcode(ref op) => write!(f, "found opcode {} which does not occur in Miniscript", op),
-            Self::NegativeInt { ref bytes, n } => write!(f, "push {} of length {} parses as a negative number {} which does not occur in Miniscript", bytes.as_bytes().as_hex(), bytes.len(), n),
-            Self::NonMinimalVerify(ref op) => write!(f, "found {} VERIFY (should be one opcode, {}VERIFY)", op, op),
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for Error {
-    fn cause(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match *self {
-            Self::InvalidInt { ref err, .. } => Some(err),
-            Self::InvalidOpcode(..) => None,
-            Self::NegativeInt { .. } => None,
-            Self::NonMinimalVerify(..) => None,
-            Self::Script(ref e) => Some(e),
-        }
-    }
 }

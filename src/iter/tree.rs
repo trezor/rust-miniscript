@@ -118,7 +118,7 @@ pub trait TreeLike: Clone + Sized {
 ///
 /// This is **not** the type that is yielded by the [`PostOrderIter`];
 /// in fact, this type is not even exported.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct IterStackItem<T> {
     /// The element on the stack
     elem: T,
@@ -147,7 +147,7 @@ impl<T: TreeLike> IterStackItem<T> {
 /// Iterates over a DAG in _post order_.
 ///
 /// That means nodes are yielded in the order (left child, right child, parent).
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct PostOrderIter<T> {
     /// The index of the next item to be yielded
     index: usize,
@@ -211,7 +211,7 @@ impl<T: TreeLike> Iterator for PostOrderIter<T> {
 }
 
 /// Adaptor structure to allow iterating in right-to-left order.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct Rtl<T>(pub T);
 
 impl<T: TreeLike> TreeLike for Rtl<T> {
@@ -237,7 +237,7 @@ impl<T: TreeLike> TreeLike for Rtl<T> {
 /// Iterates over a DAG in _right-to-left post order_.
 ///
 /// That means nodes are yielded in the order (right child, left child, parent).
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RtlPostOrderIter<T> {
     inner: PostOrderIter<Rtl<T>>,
 }
@@ -265,7 +265,7 @@ impl<T: TreeLike> Iterator for RtlPostOrderIter<T> {
 /// the indices for some reason, the best strategy may be to run the
 /// post-order iterator, collect into a vector, then iterate through that
 /// backward.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct PreOrderIter<T> {
     /// A stack of elements to be yielded. As items are yielded, their right
     /// children are put onto the stack followed by their left, so that the
@@ -312,7 +312,7 @@ impl<T: TreeLike> Iterator for PreOrderIter<T> {
 /// at the [`PreOrderIterItem::n_children_yielded`]  (which, in particular,
 /// will be 0 on the first yield) and [`PreOrderIterItem::is_complete`] (which
 /// will be true on the last yield) fields of the yielded item.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct VerbosePreOrderIter<T> {
     /// A stack of elements to be yielded. As items are yielded, their right
     /// children are put onto the stack followed by their left, so that the
@@ -354,7 +354,7 @@ impl<T: TreeLike + Clone> Iterator for VerbosePreOrderIter<T> {
 }
 
 /// A set of data yielded by a [`VerbosePreOrderIter`].
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct PreOrderIterItem<T> {
     /// The actual element being yielded.
     pub node: T,

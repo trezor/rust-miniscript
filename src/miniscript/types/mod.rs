@@ -9,11 +9,6 @@ pub mod correctness;
 pub mod extra_props;
 pub mod malleability;
 
-#[cfg(all(not(feature = "std"), not(test)))]
-use alloc::string::{String, ToString};
-use core::fmt;
-#[cfg(feature = "std")]
-use std::error;
 
 pub use self::correctness::{Base, Correctness, Input};
 pub use self::extra_props::ExtData;
@@ -22,7 +17,7 @@ use super::ScriptContext;
 use crate::{MiniscriptKey, Terminal};
 
 /// Detailed type of a typechecker error
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ErrorKind {
     /// Passed a `z` argument to a `d` wrapper when `z` was expected
     NonZeroDupIf,
@@ -60,139 +55,20 @@ pub enum ErrorKind {
 }
 
 /// Error type for typechecking
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Error {
-    /// The fragment that failed typecheck
-    pub fragment_string: String,
     /// The reason that typechecking failed
     pub error: ErrorKind,
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.error {
-            ErrorKind::NonZeroDupIf => write!(
-                f,
-                "fragment «{}» represents needs to be `z`, needs to consume zero elements from the stack",
-                self.fragment_string,
-            ),
-            ErrorKind::LeftNotDissatisfiable => write!(
-                f,
-                "fragment «{}» requires its left child be dissatisfiable",
-                self.fragment_string,
-            ),
-            ErrorKind::RightNotDissatisfiable => write!(
-                f,
-                "fragment «{}» requires its right child be dissatisfiable",
-                self.fragment_string,
-            ),
-            ErrorKind::SwapNonOne => write!(
-                f,
-                "fragment «{}» attempts to use `SWAP` to prefix something \
-                 which does not take exactly one input",
-                self.fragment_string,
-            ),
-            ErrorKind::NonZeroZero => write!(
-                f,
-                "fragment «{}» attempts to use use the `j:` wrapper around a \
-                 fragment which might be satisfied by an input of size zero",
-                self.fragment_string,
-            ),
-            ErrorKind::LeftNotUnit => write!(
-                f,
-                "fragment «{}» requires its left child be a unit (outputs \
-                 exactly 1 given a satisfying input)",
-                self.fragment_string,
-            ),
-            ErrorKind::ChildBase1(base) => write!(
-                f,
-                "fragment «{}» cannot wrap a fragment of type {:?}",
-                self.fragment_string, base,
-            ),
-            ErrorKind::ChildBase2(base1, base2) => write!(
-                f,
-                "fragment «{}» cannot accept children of types {:?} and {:?}",
-                self.fragment_string, base1, base2,
-            ),
-            ErrorKind::ChildBase3(base1, base2, base3) => write!(
-                f,
-                "fragment «{}» cannot accept children of types {:?}, {:?} and {:?}",
-                self.fragment_string, base1, base2, base3,
-            ),
-            ErrorKind::ThresholdBase(idx, base) => write!(
-                f,
-                "fragment «{}» sub-fragment {} has type {:?} rather than {:?}",
-                self.fragment_string,
-                idx,
-                base,
-                if idx == 0 { Base::B } else { Base::W },
-            ),
-            ErrorKind::ThresholdDissat(idx) => write!(
-                f,
-                "fragment «{}» sub-fragment {} can not be dissatisfied \
-                 and cannot be used in a threshold",
-                self.fragment_string, idx,
-            ),
-            ErrorKind::ThresholdNonUnit(idx) => write!(
-                f,
-                "fragment «{}» sub-fragment {} is not a unit (does not put \
-                 exactly 1 on the stack given a satisfying input)",
-                self.fragment_string, idx,
-            ),
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl error::Error for Error {
-    fn cause(&self) -> Option<&dyn error::Error> { None }
-}
-
 /// Structure representing the type of a Miniscript fragment, including all
 /// properties relevant to the main codebase
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Type {
     /// Correctness/soundness properties
     pub corr: Correctness,
     /// Malleability properties
     pub mall: Malleability,
-}
-
-impl fmt::Display for Type {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(match self.corr.base {
-            Base::B => "B",
-            Base::K => "K",
-            Base::V => "V",
-            Base::W => "W",
-        })?;
-        f.write_str("/")?;
-        f.write_str(match self.corr.input {
-            Input::Zero => "z",
-            Input::One => "o",
-            Input::OneNonZero => "on",
-            Input::Any => "",
-            Input::AnyNonZero => "n",
-        })?;
-        if self.corr.dissatisfiable {
-            f.write_str("d")?;
-        }
-        if self.corr.unit {
-            f.write_str("u")?;
-        }
-        f.write_str(match self.mall.dissat {
-            Dissat::None => "f",
-            Dissat::Unique => "e",
-            Dissat::Unknown => "",
-        })?;
-        if self.mall.safe {
-            f.write_str("s")?;
-        }
-        if self.mall.non_malleable {
-            f.write_str("m")?;
-        }
-        Ok(())
-    }
 }
 
 impl Type {
@@ -450,7 +326,7 @@ impl Type {
         Ctx: ScriptContext,
     {
         let wrap_err = |result: Result<Self, ErrorKind>| {
-            result.map_err(|kind| Error { fragment_string: fragment.to_string(), error: kind })
+            result.map_err(|kind| Error { error: kind })
         };
 
         let ret = match *fragment {
@@ -511,7 +387,7 @@ impl Type {
             }
             Terminal::Thresh(ref thresh) => {
                 let res = Self::threshold(thresh.k(), thresh.iter().map(|ms| &ms.ty));
-                res.map_err(|kind| Error { fragment_string: fragment.to_string(), error: kind })
+                res.map_err(|kind| Error { error: kind })
             }
         };
         if let Ok(ref ret) = ret {

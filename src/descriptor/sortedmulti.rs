@@ -5,7 +5,6 @@
 //! Implementation of sorted multi primitive for descriptors
 //!
 
-use core::fmt;
 use core::marker::PhantomData;
 
 use bitcoin::script;
@@ -14,12 +13,8 @@ use crate::blanket_traits::FromStrKey;
 use crate::miniscript::context::ScriptContext;
 use crate::miniscript::decode::Terminal;
 use crate::miniscript::limits::MAX_PUBKEYS_PER_MULTISIG;
-use crate::miniscript::satisfy::{Placeholder, Satisfaction};
-use crate::plan::AssetProvider;
-use crate::prelude::*;
-use crate::sync::Arc;
 use crate::{
-    expression, policy, script_num_size, Error, ForEachKey, Miniscript, MiniscriptKey, Satisfier,
+    expression, Error, ForEachKey, Miniscript, MiniscriptKey,
     Threshold, ToPublicKey, TranslateErr, Translator,
 };
 
@@ -112,7 +107,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> SortedMultiVec<Pk, Ctx> {
     /// utility function to sanity a sorted multi vec
     pub fn sanity_check(&self) -> Result<(), Error> {
         let ms: Miniscript<Pk, Ctx> =
-            Miniscript::from_ast(Terminal::Multi(self.inner.clone())).expect("Must typecheck");
+            Miniscript::from_ast(Terminal::Multi(self.inner.clone())).unwrap_or_else(|_| panic!("Must typecheck"));
         ms.sanity_check().map_err(From::from)
     }
 }
@@ -143,110 +138,5 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> SortedMultiVec<Pk, Ctx> {
         self.sorted_node()
             .encode(script::Builder::new())
             .into_script()
-    }
-
-    /// Attempt to produce a satisfying witness for the
-    /// witness script represented by the parse tree
-    pub fn satisfy<S>(&self, satisfier: S) -> Result<Vec<Vec<u8>>, Error>
-    where
-        Pk: ToPublicKey,
-        S: Satisfier<Pk>,
-    {
-        let ms = Miniscript::from_ast(self.sorted_node()).expect("Multi node typecheck");
-        ms.satisfy(satisfier)
-    }
-
-    /// Attempt to produce a witness template given the assets available
-    pub fn build_template<P>(&self, provider: &P) -> Satisfaction<Placeholder<Pk>>
-    where
-        Pk: ToPublicKey,
-        P: AssetProvider<Pk>,
-    {
-        let ms = Miniscript::from_ast(self.sorted_node()).expect("Multi node typecheck");
-        ms.build_template(provider)
-    }
-
-    /// Size, in bytes of the script-pubkey. If this Miniscript is used outside
-    /// of segwit (e.g. in a bare or P2SH descriptor), this quantity should be
-    /// multiplied by 4 to compute the weight.
-    ///
-    /// In general, it is not recommended to use this function directly, but
-    /// to instead call the corresponding function on a `Descriptor`, which
-    /// will handle the segwit/non-segwit technicalities for you.
-    pub fn script_size(&self) -> usize {
-        script_num_size(self.k())
-            + 1
-            + script_num_size(self.n())
-            + self.pks().iter().map(|pk| Ctx::pk_len(pk)).sum::<usize>()
-    }
-
-    /// Maximum number of witness elements used to satisfy the Miniscript
-    /// fragment, including the witness script itself. Used to estimate
-    /// the weight of the `VarInt` that specifies this number in a serialized
-    /// transaction.
-    ///
-    /// This function may panic on malformed `Miniscript` objects which do
-    /// not correspond to semantically sane Scripts. (Such scripts should be
-    /// rejected at parse time. Any exceptions are bugs.)
-    pub fn max_satisfaction_witness_elements(&self) -> usize { 2 + self.k() }
-
-    /// Maximum size, in bytes, of a satisfying witness.
-    /// In general, it is not recommended to use this function directly, but
-    /// to instead call the corresponding function on a `Descriptor`, which
-    /// will handle the segwit/non-segwit technicalities for you.
-    ///
-    /// All signatures are assumed to be 73 bytes in size, including the
-    /// length prefix (segwit) or push opcode (pre-segwit) and sighash
-    /// postfix.
-    pub fn max_satisfaction_size(&self) -> usize { 1 + 73 * self.k() }
-}
-
-impl<Pk: MiniscriptKey, Ctx: ScriptContext> policy::Liftable<Pk> for SortedMultiVec<Pk, Ctx> {
-    fn lift(&self) -> Result<policy::semantic::Policy<Pk>, Error> {
-        Ok(policy::semantic::Policy::Thresh(
-            self.inner
-                .map_ref(|pk| Arc::new(policy::semantic::Policy::Key(pk.clone())))
-                .forget_maximum(),
-        ))
-    }
-}
-
-impl<Pk: MiniscriptKey, Ctx: ScriptContext> fmt::Debug for SortedMultiVec<Pk, Ctx> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { fmt::Display::fmt(self, f) }
-}
-
-impl<Pk: MiniscriptKey, Ctx: ScriptContext> fmt::Display for SortedMultiVec<Pk, Ctx> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.inner.display("sortedmulti", true), f)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use core::str::FromStr as _;
-
-    use bitcoin::PublicKey;
-
-    use super::*;
-    use crate::miniscript::context::{Legacy, ScriptContextError};
-
-    #[test]
-    fn too_many_pubkeys_for_p2sh() {
-        // Arbitrary 65-byte public key (66 with length prefix).
-        let pk = PublicKey::from_str(
-            "0400232a2acfc9b43fa89f1b4f608fde335d330d7114f70ea42bfb4a41db368a3e3be6934a4097dd25728438ef73debb1f2ffdb07fec0f18049df13bdc5285dc5b",
-        )
-        .unwrap();
-
-        // This is legal for CHECKMULTISIG, but the 8 keys consume the whole 520 bytes
-        // allowed by P2SH, meaning that the full script goes over the limit.
-        let thresh = Threshold::new(2, vec![pk; 8]).expect("the thresh is ok..");
-        let res: Result<SortedMultiVec<PublicKey, Legacy>, Error> = SortedMultiVec::new(thresh);
-        let error = res.expect_err("constructor should err");
-
-        match error {
-            Error::ContextError(ScriptContextError::MaxRedeemScriptSizeExceeded { .. }) => {} // ok
-            other => panic!("unexpected error: {:?}", other),
-        }
     }
 }

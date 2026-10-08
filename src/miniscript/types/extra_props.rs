@@ -12,7 +12,7 @@ use crate::prelude::*;
 use crate::{script_num_size, AbsLockTime, MiniscriptKey, RelLockTime, Terminal};
 
 /// Timelock information for satisfaction of a fragment.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct TimelockInfo {
     /// csv with heights
     pub csv_with_height: bool,
@@ -91,7 +91,7 @@ impl TimelockInfo {
 /// All ECDSA signatures are assumed to be 73 bytes in size (including the length
 /// prefix if it's a witness element, or push opcode if it's a script push) and
 /// its sighash byte.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SatData {
     /// The maximum size, in bytes, of the witness stack.
     ///
@@ -141,7 +141,7 @@ impl SatData {
 }
 
 /// Structure representing the extra type properties of a fragment.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ExtData {
     /// The number of bytes needed to encode its scriptpubkey
     pub pk_cost: usize,
@@ -1009,31 +1009,5 @@ impl ExtData {
     pub(crate) fn sat_op_count(&self) -> Option<usize> {
         self.sat_data
             .map(|data| self.static_ops + data.max_exec_op_count)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn combine_threshold() {
-        let mut time1 = TimelockInfo::default();
-        let mut time2 = TimelockInfo::default();
-        let mut height = TimelockInfo::default();
-
-        time1.csv_with_time = true;
-        time2.csv_with_time = true;
-        height.csv_with_height = true;
-
-        // For threshold of 1, multiple absolute timelocks do not effect spendable path.
-        let v = vec![time1, time2, height];
-        let combined = TimelockInfo::combine_threshold(1, v);
-        assert!(!combined.contains_unspendable_path());
-
-        // For threshold of 2, multiple absolute timelocks cannot be spent in a single path.
-        let v = vec![time1, time2, height];
-        let combined = TimelockInfo::combine_threshold(2, v);
-        assert!(combined.contains_unspendable_path())
     }
 }

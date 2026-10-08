@@ -1,16 +1,14 @@
 // Written in 2019 by Sanket Kanjalkar and Andrew Poelstra
 // SPDX-License-Identifier: CC0-1.0
 
-use core::{fmt, hash};
-#[cfg(feature = "std")]
-use std::error;
+use core::hash;
 
 use bitcoin::hashes::{hash160, ripemd160, sha256};
 use bitcoin::Weight;
 
 use super::decode::ParseableKey;
 use crate::miniscript::limits::{
-    MAX_OPS_PER_SCRIPT, MAX_SCRIPTSIG_SIZE, MAX_SCRIPT_ELEMENT_SIZE, MAX_SCRIPT_SIZE,
+    MAX_OPS_PER_SCRIPT, MAX_SCRIPT_SIZE,
     MAX_STACK_SIZE, MAX_STANDARD_P2WSH_SCRIPT_SIZE, MAX_STANDARD_P2WSH_STACK_ITEMS,
 };
 use crate::miniscript::types;
@@ -18,7 +16,7 @@ use crate::prelude::*;
 use crate::{hash256, Error, ForEachKey, Miniscript, MiniscriptKey, Terminal};
 
 /// Error for Script Context
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum ScriptContextError {
     /// Script Context does not permit OrI for non-malleability
     /// Legacy fragments allow non-minimal IF which results in malleability
@@ -31,7 +29,7 @@ pub enum ScriptContextError {
     CompressedOnly(String),
     /// XOnly keys are only allowed in Tap context
     /// The first element is key, and second element is current script context
-    XOnlyKeysNotAllowed(String, &'static str),
+    XOnlyKeysNotAllowed(&'static str),
     /// Tapscript descriptors cannot contain uncompressed keys
     /// Tap context can contain compressed or xonly
     UncompressedKeysNotAllowed,
@@ -63,103 +61,6 @@ pub enum ScriptContextError {
     MultiANotAllowed,
 }
 
-#[cfg(feature = "std")]
-impl error::Error for ScriptContextError {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        use self::ScriptContextError::*;
-
-        match self {
-            MalleableOrI
-            | MalleableDupIf
-            | CompressedOnly(_)
-            | XOnlyKeysNotAllowed(_, _)
-            | UncompressedKeysNotAllowed
-            | MaxWitnessItemsExceeded { .. }
-            | MaxOpCountExceeded { .. }
-            | MaxWitnessScriptSizeExceeded { .. }
-            | MaxRedeemScriptSizeExceeded { .. }
-            | MaxBareScriptSizeExceeded { .. }
-            | MaxScriptSigSizeExceeded { .. }
-            | ImpossibleSatisfaction
-            | TaprootMultiDisabled
-            | StackSizeLimitExceeded { .. }
-            | MultiANotAllowed => None,
-        }
-    }
-}
-
-impl fmt::Display for ScriptContextError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            ScriptContextError::MalleableOrI => write!(f, "OrI is malleable under Legacy rules"),
-            ScriptContextError::MalleableDupIf => {
-                write!(f, "DupIf is malleable under Legacy rules")
-            }
-            ScriptContextError::CompressedOnly(ref pk) => {
-                write!(f, "Only Compressed pubkeys are allowed in segwit context. Found {}", pk)
-            }
-            ScriptContextError::XOnlyKeysNotAllowed(ref pk, ref ctx) => {
-                write!(f, "x-only key {} not allowed in {}", pk, ctx)
-            }
-            ScriptContextError::UncompressedKeysNotAllowed => {
-                write!(f, "uncompressed keys cannot be used in Taproot descriptors.")
-            }
-            ScriptContextError::MaxWitnessItemsExceeded { actual, limit } => write!(
-                f,
-                "At least one satisfaction path in the Miniscript fragment has {} witness items \
-                 (limit: {}).",
-                actual, limit
-            ),
-            ScriptContextError::MaxOpCountExceeded { actual, limit } => write!(
-                f,
-                "At least one satisfaction path in the Miniscript fragment contains {} opcodes \
-                 (limit: {}).",
-                actual, limit
-            ),
-            ScriptContextError::MaxWitnessScriptSizeExceeded { max, got } => write!(
-                f,
-                "The Miniscript corresponding Script cannot be larger than \
-                {} bytes, but got {} bytes.",
-                max, got
-            ),
-            ScriptContextError::MaxRedeemScriptSizeExceeded { max, got } => write!(
-                f,
-                "The Miniscript corresponding Script cannot be larger than \
-                {} bytes, but got {} bytes.",
-                max, got
-            ),
-            ScriptContextError::MaxBareScriptSizeExceeded { max, got } => write!(
-                f,
-                "The Miniscript corresponding Script cannot be larger than \
-                {} bytes, but got {} bytes.",
-                max, got
-            ),
-            ScriptContextError::MaxScriptSigSizeExceeded { actual, limit } => write!(
-                f,
-                "At least one satisfaction path in the Miniscript fragment has {} bytes \
-                (limit: {}).",
-                actual, limit
-            ),
-            ScriptContextError::ImpossibleSatisfaction => {
-                write!(f, "Impossible to satisfy Miniscript under the current context")
-            }
-            ScriptContextError::TaprootMultiDisabled => {
-                write!(f, "Invalid use of Multi node in taproot context")
-            }
-            ScriptContextError::StackSizeLimitExceeded { actual, limit } => {
-                write!(
-                    f,
-                    "Stack limit {} can exceed the allowed limit {} in at least one script path during script execution",
-                    actual, limit
-                )
-            }
-            ScriptContextError::MultiANotAllowed => {
-                write!(f, "Multi a(CHECKSIGADD) only allowed post tapscript")
-            }
-        }
-    }
-}
-
 /// The ScriptContext for Miniscript.
 ///
 /// Additional type information associated with
@@ -167,7 +68,7 @@ impl fmt::Display for ScriptContextError {
 /// context under which the script is used.
 /// For example, disallowing uncompressed keys in Segwit context
 pub trait ScriptContext:
-    fmt::Debug + Clone + Ord + PartialOrd + Eq + PartialEq + hash::Hash + private::Sealed
+    Clone + Ord + PartialOrd + Eq + PartialEq + hash::Hash + private::Sealed
 where
     Self::Key: MiniscriptKey<Sha256 = sha256::Hash>,
     Self::Key: MiniscriptKey<Hash256 = hash256::Hash>,
@@ -272,7 +173,7 @@ where
     /// Check whether the top-level is type B
     fn top_level_type_check<Pk: MiniscriptKey>(ms: &Miniscript<Pk, Self>) -> Result<(), Error> {
         if ms.ty.corr.base != types::Base::B {
-            return Err(Error::NonTopLevel(format!("{:?}", ms)));
+            return Err(Error::NonTopLevel);
         }
         // (Ab)use `for_each_key` to record the number of derivation paths a multipath key has.
         #[derive(PartialEq)]
@@ -342,7 +243,7 @@ where
 }
 
 /// Signature algorithm type
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SigType {
     /// Ecdsa signature
     Ecdsa,
@@ -350,117 +251,8 @@ pub enum SigType {
     Schnorr,
 }
 
-/// Legacy ScriptContext
-/// To be used as P2SH scripts
-/// For creation of Bare scriptpubkeys, construct the Miniscript
-/// under `Bare` ScriptContext
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum Legacy {}
-
-impl ScriptContext for Legacy {
-    type Key = bitcoin::PublicKey;
-    fn check_terminal_non_malleable<Pk: MiniscriptKey>(
-        frag: &Terminal<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        match *frag {
-            Terminal::OrI(ref _a, ref _b) => Err(ScriptContextError::MalleableOrI),
-            Terminal::DupIf(ref _ms) => Err(ScriptContextError::MalleableDupIf),
-            _ => Ok(()),
-        }
-    }
-
-    // Only compressed and uncompressed public keys are allowed in Legacy context
-    fn check_pk<Pk: MiniscriptKey>(pk: &Pk) -> Result<(), ScriptContextError> {
-        if pk.is_x_only_key() {
-            Err(ScriptContextError::XOnlyKeysNotAllowed(pk.to_string(), Self::name_str()))
-        } else {
-            Ok(())
-        }
-    }
-
-    fn check_global_consensus_validity<Pk: MiniscriptKey>(
-        ms: &Miniscript<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        // 1. Check the node first, throw an error on the language itself
-        let node_checked = match ms.node {
-            Terminal::PkK(ref pk) => Self::check_pk(pk),
-            Terminal::Multi(ref thresh) => {
-                for pk in thresh.iter() {
-                    Self::check_pk(pk)?;
-                }
-                Ok(())
-            }
-            Terminal::MultiA(..) => Err(ScriptContextError::MultiANotAllowed),
-            _ => Ok(()),
-        };
-        // 2. After fragment and param check, validate the script size finally
-        match node_checked {
-            Ok(_) => {
-                if ms.ext.pk_cost > MAX_SCRIPT_ELEMENT_SIZE {
-                    Err(ScriptContextError::MaxRedeemScriptSizeExceeded {
-                        max: MAX_SCRIPT_ELEMENT_SIZE,
-                        got: ms.ext.pk_cost,
-                    })
-                } else {
-                    Ok(())
-                }
-            }
-            Err(_) => node_checked,
-        }
-    }
-
-    fn check_local_consensus_validity<Pk: MiniscriptKey>(
-        ms: &Miniscript<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        match ms.ext.sat_op_count() {
-            None => Err(ScriptContextError::ImpossibleSatisfaction),
-            Some(op_count) if op_count > MAX_OPS_PER_SCRIPT => {
-                Err(ScriptContextError::MaxOpCountExceeded {
-                    actual: op_count,
-                    limit: MAX_OPS_PER_SCRIPT,
-                })
-            }
-            _ => Ok(()),
-        }
-    }
-
-    fn check_local_policy_validity<Pk: MiniscriptKey>(
-        ms: &Miniscript<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        // Legacy scripts permit upto 1000 stack elements, 520 bytes consensus limits
-        // on P2SH size, it is not possible to reach the 1000 elements limit and hence
-        // we do not check it.
-        match ms.max_satisfaction_size() {
-            Err(_e) => Err(ScriptContextError::ImpossibleSatisfaction),
-            Ok(size) if size > MAX_SCRIPTSIG_SIZE => {
-                Err(ScriptContextError::MaxScriptSigSizeExceeded {
-                    actual: size,
-                    limit: MAX_SCRIPTSIG_SIZE,
-                })
-            }
-            _ => Ok(()),
-        }
-    }
-
-    fn max_satisfaction_size<Pk: MiniscriptKey>(ms: &Miniscript<Pk, Self>) -> Option<usize> {
-        ms.ext.sat_data.map(|data| data.max_script_sig_size)
-    }
-
-    fn pk_len<Pk: MiniscriptKey>(pk: &Pk) -> usize {
-        if pk.is_uncompressed() {
-            66
-        } else {
-            34
-        }
-    }
-
-    fn name_str() -> &'static str { "Legacy/p2sh" }
-
-    fn sig_type() -> SigType { SigType::Ecdsa }
-}
-
 /// Segwitv0 ScriptContext
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Segwitv0 {}
 
 impl ScriptContext for Segwitv0 {
@@ -476,7 +268,7 @@ impl ScriptContext for Segwitv0 {
         if pk.is_uncompressed() {
             Err(ScriptContextError::UncompressedKeysNotAllowed)
         } else if pk.is_x_only_key() {
-            Err(ScriptContextError::XOnlyKeysNotAllowed(pk.to_string(), Self::name_str()))
+            Err(ScriptContextError::XOnlyKeysNotAllowed(Self::name_str()))
         } else {
             Ok(())
         }
@@ -571,7 +363,7 @@ impl ScriptContext for Segwitv0 {
 }
 
 /// Tap ScriptContext
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Tap {}
 
 impl ScriptContext for Tap {
@@ -675,215 +467,13 @@ impl ScriptContext for Tap {
 
     fn name_str() -> &'static str { "TapscriptCtx" }
 }
-
-/// Bare ScriptContext
-/// To be used as raw script pubkeys
-/// In general, it is not recommended to use Bare descriptors
-/// as they as strongly limited by standardness policies.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum BareCtx {}
-
-impl ScriptContext for BareCtx {
-    type Key = bitcoin::PublicKey;
-    fn check_terminal_non_malleable<Pk: MiniscriptKey>(
-        _frag: &Terminal<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        // Bare fragments can't contain miniscript because of standardness rules
-        // This function is only used in compiler which already checks the standardness
-        // and consensus rules, and because of the limited allowance of bare scripts
-        // we need check for malleable scripts
-        Ok(())
-    }
-
-    // No x-only keys in Bare context
-    fn check_pk<Pk: MiniscriptKey>(pk: &Pk) -> Result<(), ScriptContextError> {
-        if pk.is_x_only_key() {
-            Err(ScriptContextError::XOnlyKeysNotAllowed(pk.to_string(), Self::name_str()))
-        } else {
-            Ok(())
-        }
-    }
-
-    fn check_global_consensus_validity<Pk: MiniscriptKey>(
-        ms: &Miniscript<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        // 1. Check the node first, throw an error on the language itself
-        let node_checked = match ms.node {
-            Terminal::PkK(ref key) => Self::check_pk(key),
-            Terminal::Multi(ref thresh) => {
-                for pk in thresh.iter() {
-                    Self::check_pk(pk)?;
-                }
-                Ok(())
-            }
-            Terminal::MultiA(..) => Err(ScriptContextError::MultiANotAllowed),
-            _ => Ok(()),
-        };
-        // 2. After fragment and param check, validate the script size finally
-        match node_checked {
-            Ok(_) => {
-                if ms.ext.pk_cost > MAX_SCRIPT_SIZE {
-                    Err(ScriptContextError::MaxBareScriptSizeExceeded {
-                        max: MAX_SCRIPT_SIZE,
-                        got: ms.ext.pk_cost,
-                    })
-                } else {
-                    Ok(())
-                }
-            }
-            Err(_) => node_checked,
-        }
-    }
-
-    fn check_local_consensus_validity<Pk: MiniscriptKey>(
-        ms: &Miniscript<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        match ms.ext.sat_op_count() {
-            None => Err(ScriptContextError::ImpossibleSatisfaction),
-            Some(op_count) if op_count > MAX_OPS_PER_SCRIPT => {
-                Err(ScriptContextError::MaxOpCountExceeded {
-                    actual: op_count,
-                    limit: MAX_OPS_PER_SCRIPT,
-                })
-            }
-            _ => Ok(()),
-        }
-    }
-
-    fn other_top_level_checks<Pk: MiniscriptKey>(ms: &Miniscript<Pk, Self>) -> Result<(), Error> {
-        match &ms.node {
-            Terminal::Check(ref ms) => match &ms.node {
-                Terminal::RawPkH(_pkh) => Ok(()),
-                Terminal::PkK(_pk) | Terminal::PkH(_pk) => Ok(()),
-                _ => Err(Error::NonStandardBareScript),
-            },
-            Terminal::Multi(ref thresh) if thresh.n() <= 3 => Ok(()),
-            _ => Err(Error::NonStandardBareScript),
-        }
-    }
-
-    fn max_satisfaction_size<Pk: MiniscriptKey>(ms: &Miniscript<Pk, Self>) -> Option<usize> {
-        // For bare outputs the script appears in the scriptpubkey; its cost
-        // is the same as for a legacy scriptsig.
-        ms.ext.sat_data.map(|data| data.max_script_sig_size)
-    }
-
-    fn pk_len<Pk: MiniscriptKey>(pk: &Pk) -> usize {
-        if pk.is_uncompressed() {
-            66
-        } else {
-            34
-        }
-    }
-
-    fn name_str() -> &'static str { "BareCtx" }
-
-    fn sig_type() -> SigType { SigType::Ecdsa }
-}
-
-/// "No Checks Ecdsa" Context
-///
-/// Used by the "satisified constraints" iterator, which is intended to read
-/// scripts off of the blockchain without doing any sanity checks on them.
-/// This context should *NOT* be used unless you know what you are doing.
-#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum NoChecks {}
-impl ScriptContext for NoChecks {
-    // todo: When adding support for interpreter, we need a enum with all supported keys here
-    type Key = bitcoin::PublicKey;
-    fn check_terminal_non_malleable<Pk: MiniscriptKey>(
-        _frag: &Terminal<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        Ok(())
-    }
-
-    // No checks in NoChecks
-    fn check_pk<Pk: MiniscriptKey>(_pk: &Pk) -> Result<(), ScriptContextError> { Ok(()) }
-
-    fn check_global_policy_validity<Pk: MiniscriptKey>(
-        _ms: &Miniscript<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        Ok(())
-    }
-
-    fn check_global_consensus_validity<Pk: MiniscriptKey>(
-        _ms: &Miniscript<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        Ok(())
-    }
-
-    fn check_local_policy_validity<Pk: MiniscriptKey>(
-        _ms: &Miniscript<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        Ok(())
-    }
-
-    fn check_local_consensus_validity<Pk: MiniscriptKey>(
-        _ms: &Miniscript<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        Ok(())
-    }
-
-    fn max_satisfaction_size<Pk: MiniscriptKey>(_ms: &Miniscript<Pk, Self>) -> Option<usize> {
-        panic!("Tried to compute a satisfaction size bound on a no-checks ecdsa miniscript")
-    }
-
-    fn pk_len<Pk: MiniscriptKey>(_pk: &Pk) -> usize {
-        panic!("Tried to compute a pk len bound on a no-checks ecdsa miniscript")
-    }
-
-    fn name_str() -> &'static str {
-        // Internally used code
-        "NochecksEcdsa"
-    }
-
-    fn check_global_validity<Pk: MiniscriptKey>(
-        ms: &Miniscript<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        Self::check_global_consensus_validity(ms)?;
-        Self::check_global_policy_validity(ms)?;
-        Ok(())
-    }
-
-    fn check_local_validity<Pk: MiniscriptKey>(
-        ms: &Miniscript<Pk, Self>,
-    ) -> Result<(), ScriptContextError> {
-        Self::check_global_consensus_validity(ms)?;
-        Self::check_global_policy_validity(ms)?;
-        Self::check_local_consensus_validity(ms)?;
-        Self::check_local_policy_validity(ms)?;
-        Ok(())
-    }
-
-    fn top_level_type_check<Pk: MiniscriptKey>(ms: &Miniscript<Pk, Self>) -> Result<(), Error> {
-        if ms.ty.corr.base != types::Base::B {
-            return Err(Error::NonTopLevel(format!("{:?}", ms)));
-        }
-        Ok(())
-    }
-
-    fn other_top_level_checks<Pk: MiniscriptKey>(_ms: &Miniscript<Pk, Self>) -> Result<(), Error> {
-        Ok(())
-    }
-
-    fn top_level_checks<Pk: MiniscriptKey>(ms: &Miniscript<Pk, Self>) -> Result<(), Error> {
-        Self::top_level_type_check(ms)?;
-        Self::other_top_level_checks(ms)
-    }
-
-    fn sig_type() -> SigType { SigType::Ecdsa }
-}
-
 /// Private Mod to prevent downstream from implementing this public trait
 mod private {
-    use super::{BareCtx, Legacy, NoChecks, Segwitv0, Tap};
+    use super::{Segwitv0, Tap};
 
     pub trait Sealed {}
 
     // Implement for those same types, but no others.
-    impl Sealed for BareCtx {}
-    impl Sealed for Legacy {}
     impl Sealed for Segwitv0 {}
     impl Sealed for Tap {}
-    impl Sealed for NoChecks {}
 }

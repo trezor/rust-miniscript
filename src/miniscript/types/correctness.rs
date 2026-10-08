@@ -5,7 +5,7 @@
 use super::ErrorKind;
 
 /// Basic type representing where the fragment can go
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Base {
     /// Takes its inputs from the top of the stack. Pushes
     /// nonzero if the condition is satisfied. If not, if it
@@ -28,7 +28,7 @@ pub enum Base {
 
 /// Type property representing expectations about how many inputs
 /// the fragment accepts, and assumptions about that
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Input {
     /// Consumes no stack elements under any circumstances
     Zero,
@@ -77,7 +77,7 @@ impl Input {
 /// Completeness is the property that a valid witness actually exists for all
 /// branches, which an honest user can produce. Soundness is the property
 /// that no branch can be satisfied _without_ an honest user.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Correctness {
     /// The base type
     pub base: Base,

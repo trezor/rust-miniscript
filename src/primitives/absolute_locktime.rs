@@ -2,7 +2,7 @@
 
 //! Absolute Locktimes
 
-use core::{cmp, fmt};
+use core::cmp;
 
 use bitcoin::absolute;
 
@@ -17,33 +17,13 @@ pub const MAX_ABSOLUTE_LOCKTIME: u32 = 0x7FFF_FFFF;
 pub const MIN_ABSOLUTE_LOCKTIME: u32 = 1;
 
 /// Error parsing an absolute locktime.
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct AbsLockTimeError {
     value: u32,
 }
 
-impl fmt::Display for AbsLockTimeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.value < MIN_ABSOLUTE_LOCKTIME {
-            f.write_str("absolute locktimes in Miniscript have a minimum value of 1")
-        } else {
-            debug_assert!(self.value > MAX_ABSOLUTE_LOCKTIME);
-            write!(
-                f,
-                "absolute locktimes in Miniscript have a maximum value of 0x{:08x}; got 0x{:08x}",
-                MAX_ABSOLUTE_LOCKTIME, self.value
-            )
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for AbsLockTimeError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> { None }
-}
-
 /// An absolute locktime that implements `Ord`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AbsLockTime(absolute::LockTime);
 
 impl AbsLockTime {
@@ -84,8 +64,4 @@ impl cmp::Ord for AbsLockTime {
         let that = other.0.to_consensus_u32();
         this.cmp(&that)
     }
-}
-
-impl fmt::Display for AbsLockTime {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { fmt::Display::fmt(&self.0, f) }
 }

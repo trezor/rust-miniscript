@@ -2,36 +2,18 @@
 
 //! Relative Locktimes
 
-use core::{cmp, convert, fmt};
+use core::{cmp, convert};
 
 use bitcoin::{relative, Sequence};
 
 /// Error parsing an absolute locktime.
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub struct RelLockTimeError {
     value: u32,
 }
 
-impl fmt::Display for RelLockTimeError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.value == 0 {
-            f.write_str("relative locktimes in Miniscript have a minimum value of 1")
-        } else {
-            debug_assert!(Sequence::from_consensus(self.value)
-                .to_relative_lock_time()
-                .is_none());
-            write!(f, "locktime value {} is not a valid BIP68 relative locktime", self.value)
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for RelLockTimeError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> { None }
-}
-
 /// A relative locktime which implements `Ord`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct RelLockTime(Sequence);
 
 impl RelLockTime {
@@ -93,8 +75,4 @@ impl cmp::Ord for RelLockTime {
         let that = other.0.to_consensus_u32();
         this.cmp(&that)
     }
-}
-
-impl fmt::Display for RelLockTime {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result { fmt::Display::fmt(&self.0, f) }
 }

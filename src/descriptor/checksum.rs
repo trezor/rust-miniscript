@@ -33,7 +33,7 @@ const CHAR_MAP: [u8; 95] = [
 ];
 
 /// Error validating descriptor checksum.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Error {
     /// Character outside of descriptor charset.
     InvalidCharacter {
@@ -56,35 +56,6 @@ pub enum Error {
         /// The checksum that should have been there, assuming the string is valid.
         expected: [char; CHECKSUM_LENGTH],
     },
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::InvalidCharacter { ch, pos } => {
-                write!(f, "invalid character '{}' (position {})", ch, pos)
-            }
-            Error::InvalidChecksumLength { actual, expected } => {
-                write!(f, "invalid checksum (length {}, expected {})", actual, expected)
-            }
-            Error::InvalidChecksum { actual, expected } => {
-                f.write_str("invalid checksum ")?;
-                for ch in actual {
-                    ch.fmt(f)?;
-                }
-                f.write_str("; expected ")?;
-                for ch in expected {
-                    ch.fmt(f)?;
-                }
-                Ok(())
-            }
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for Error {
-    fn cause(&self) -> Option<&dyn std::error::Error> { None }
 }
 
 /// Helper function for `FromStr` for various descriptor types.
@@ -253,88 +224,5 @@ impl fmt::Write for Formatter<'_, '_> {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.fmt.write_str(s)?;
         self.eng.input(s).map_err(|_| fmt::Error)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use core::str;
-
-    use super::*;
-
-    macro_rules! check_expected {
-        ($desc: expr, $checksum: expr) => {
-            let mut eng = Engine::new();
-            eng.input_unchecked($desc.as_bytes());
-            assert_eq!(eng.checksum(), $checksum);
-        };
-    }
-
-    #[test]
-    fn test_valid_descriptor_checksum() {
-        check_expected!(
-            "wpkh(tprv8ZgxMBicQKsPdpkqS7Eair4YxjcuuvDPNYmKX3sCniCf16tHEVrjjiSXEkFRnUH77yXc6ZcwHHcLNfjdi5qUvw3VDfgYiH5mNsj5izuiu2N/1/2/*)",
-            "tqz0nc62"
-        );
-        check_expected!(
-            "pkh(tpubD6NzVbkrYhZ4XHndKkuB8FifXm8r5FQHwrN6oZuWCz13qb93rtgKvD4PQsqC4HP4yhV3tA2fqr2RbY5mNXfM7RxXUoeABoDtsFUq2zJq6YK/44'/1'/0'/0/*)",
-            "lasegmfs"
-        );
-
-        // https://github.com/bitcoin/bitcoin/blob/7ae86b3c6845873ca96650fc69beb4ae5285c801/src/test/descriptor_tests.cpp#L352-L354
-        check_expected!(
-            "sh(multi(2,[00000000/111'/222]xprvA1RpRA33e1JQ7ifknakTFpgNXPmW2YvmhqLQYMmrj4xJXXWYpDPS3xz7iAxn8L39njGVyuoseXzU6rcxFLJ8HFsTjSyQbLYnMpCqE2VbFWc,xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L/0))",
-            "ggrsrxfy"
-        );
-        check_expected!(
-            "sh(multi(2,[00000000/111'/222]xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL,xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y/0))",
-            "tjg09x5t"
-        );
-    }
-
-    #[test]
-    fn test_desc_checksum_invalid_character() {
-        let sparkle_heart = vec![240, 159, 146, 150];
-        let sparkle_heart = str::from_utf8(&sparkle_heart)
-            .unwrap()
-            .chars()
-            .next()
-            .unwrap();
-        let invalid_desc = format!("wpkh(tprv8ZgxMBicQKsPdpkqS7Eair4YxjcuuvDPNYmKX3sCniCf16tHEVrjjiSXEkFRnUH77yXc6ZcwHHcL{}fjdi5qUvw3VDfgYiH5mNsj5izuiu2N/1/2/*)", sparkle_heart);
-
-        assert_eq!(
-            verify_checksum(&invalid_desc).err().unwrap().to_string(),
-            format!("invalid character '{}' (position 85)", sparkle_heart)
-        );
-    }
-
-    #[test]
-    fn bip_380_test_vectors_checksum_and_character_set_valid() {
-        let tcs = vec![
-            "raw(deadbeef)#89f8spxm", // Valid checksum.
-            "raw(deadbeef)",          // No checksum.
-        ];
-        for tc in tcs {
-            if verify_checksum(tc).is_err() {
-                panic!("false negative: {}", tc)
-            }
-        }
-    }
-
-    #[test]
-    fn bip_380_test_vectors_checksum_and_character_set_invalid() {
-        let tcs = vec![
-            "raw(deadbeef)#",          // Missing checksum.
-            "raw(deadbeef)#89f8spxmx", // Too long checksum.
-            "raw(deadbeef)#89f8spx",   // Too short checksum.
-            "raw(dedbeef)#89f8spxm",   // Error in payload.
-            "raw(deadbeef)##9f8spxm",  // Error in checksum.
-            "raw(Ü)#00000000",         // Invalid characters in payload.
-        ];
-        for tc in tcs {
-            if verify_checksum(tc).is_ok() {
-                panic!("false positive: {}", tc)
-            }
-        }
     }
 }

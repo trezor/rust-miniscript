@@ -17,59 +17,6 @@ std = ["bitcoin/std", "bitcoin/secp-recovery", "bech32/std"]
 compiler = []
 trace = []
 
-serde = ["dep:serde", "bitcoin/serde"]
-rand = ["bitcoin/rand"]
-base64 = ["bitcoin/base64"]
-
 [dependencies]
 bech32 = { version = "0.11.0", default-features = false, features = ["alloc"] }
 bitcoin = { version = "0.32.6", default-features = false }
-hex = { package = "hex-conservative", default-features = false, features = ["alloc"], version = "1.0.0" }
-
-serde = { version = "1.0.103", optional = true }
-
-[dev-dependencies]
-serde_test = "1.0.147"
-bitcoin = { version = "0.32.0", features = ["base64"] }
-secp256k1 = {version = "0.29.0", features = ["rand-std"]}
-
-[[example]]
-name = "htlc"
-required-features = ["std", "compiler"]
-
-[[example]]
-name = "parse"
-required-features = ["std"]
-
-[[example]]
-name = "sign_multisig"
-required-features = ["std"]
-
-[[example]]
-name = "verify_tx"
-required-features = ["std"]
-
-[[example]]
-name = "xpub_descriptors"
-required-features = ["std"]
-
-[[example]]
-name = "taproot"
-required-features = ["compiler","std"]
-
-[[example]]
-name = "psbt_sign_finalize"
-required-features = ["std", "base64"]
-
-[[example]]
-name = "big"
-required-features = ["std", "base64", "compiler"]
-
-[[example]]
-name = "taptree_of_horror"
-path = "examples/taptree_of_horror/taptree_of_horror.rs"
-required-features = ["compiler"]
-
-[workspace]
-members = ["fuzz"]
-exclude = ["embedded", "bitcoind-tests"]

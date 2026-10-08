@@ -1,31 +1,20 @@
 // SPDX-License-Identifier: CC0-1.0
 
-use core::fmt;
 
 use bitcoin::taproot::{LeafVersion, TapLeafHash, TAPROOT_CONTROL_MAX_NODE_COUNT};
 
 use crate::miniscript::context::Tap;
-use crate::policy::{Liftable, Semantic};
 use crate::prelude::Vec;
 use crate::sync::Arc;
-use crate::{Miniscript, MiniscriptKey, Threshold, ToPublicKey};
+use crate::{Miniscript, MiniscriptKey, ToPublicKey};
 
 /// Tried to construct Taproot tree which was too deep.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq)]
 #[non_exhaustive]
 pub struct TapTreeDepthError;
 
-impl fmt::Display for TapTreeDepthError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("maximum Taproot tree depth (128) exceeded")
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for TapTreeDepthError {}
-
 /// A Taproot Tree representation.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct TapTree<Pk: MiniscriptKey> {
     depths_leaves: Vec<(u8, Arc<Miniscript<Pk, Tap>>)>,
 }
@@ -73,58 +62,6 @@ impl<Pk: MiniscriptKey> TapTree<Pk> {
     }
 }
 
-impl<Pk: MiniscriptKey> Liftable<Pk> for TapTree<Pk> {
-    fn lift(&self) -> Result<Semantic<Pk>, crate::Error> {
-        let thresh_vec = self
-            .leaves()
-            .map(|item| item.miniscript().lift().map(Arc::new))
-            .collect::<Result<Vec<_>, _>>()?;
-        let thresh = Threshold::new(1, thresh_vec).expect("no size limit on Semantic threshold");
-        Ok(Semantic::Thresh(thresh).normalized())
-    }
-}
-
-fn fmt_helper<Pk: MiniscriptKey>(
-    view: &TapTree<Pk>,
-    f: &mut fmt::Formatter,
-    mut fmt_ms: impl FnMut(&mut fmt::Formatter, &Miniscript<Pk, Tap>) -> fmt::Result,
-) -> fmt::Result {
-    let mut last_depth = 0;
-    for item in view.leaves() {
-        if last_depth > 0 {
-            f.write_str(",")?;
-        }
-
-        while last_depth < item.depth() {
-            f.write_str("{")?;
-            last_depth += 1;
-        }
-        fmt_ms(f, item.miniscript())?;
-        while last_depth > item.depth() {
-            f.write_str("}")?;
-            last_depth -= 1;
-        }
-    }
-
-    while last_depth > 0 {
-        f.write_str("}")?;
-        last_depth -= 1;
-    }
-    Ok(())
-}
-
-impl<Pk: MiniscriptKey> fmt::Display for TapTree<Pk> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt_helper(self, f, |f, ms| write!(f, "{}", ms))
-    }
-}
-
-impl<Pk: MiniscriptKey> fmt::Debug for TapTree<Pk> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt_helper(self, f, |f, ms| write!(f, "{:?}", ms))
-    }
-}
-
 /// Iterator over the leaves of a Taptree.
 ///
 /// Yields a pair of (depth, miniscript) in a depth first walk
@@ -138,7 +75,7 @@ impl<Pk: MiniscriptKey> fmt::Debug for TapTree<Pk> {
 ///                                           D    E
 /// would yield (2, A), (2, B), (2,C), (3, D), (3, E).
 ///
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TapTreeIter<'tr, Pk: MiniscriptKey> {
     inner: core::slice::Iter<'tr, (u8, Arc<Miniscript<Pk, Tap>>)>,
 }
@@ -179,7 +116,7 @@ impl<'tr, Pk: MiniscriptKey> core::iter::FusedIterator for TapTreeIter<'tr, Pk> 
 ///
 /// If there is no tree (i.e. this is a keyspend-only Taproot descriptor)
 /// then the iterator will yield nothing.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct TapTreeIterItem<'tr, Pk: MiniscriptKey> {
     node: &'tr Arc<Miniscript<Pk, Tap>>,
     depth: u8,

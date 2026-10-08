@@ -6,38 +6,16 @@
 
 #[cfg(all(not(feature = "std"), not(test)))]
 use alloc::{vec, vec::Vec};
-use core::{cmp, fmt, iter};
+use core::{cmp, iter};
 #[cfg(any(feature = "std", test))]
 use std::vec;
 
 /// Error parsing an absolute locktime.
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ThresholdError {
     k: usize,
     n: usize,
     max: Option<usize>,
-}
-
-impl fmt::Display for ThresholdError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        if self.n == 0 {
-            f.write_str("thresholds in Miniscript must be nonempty")
-        } else if self.k == 0 {
-            f.write_str("thresholds in Miniscript must have k > 0")
-        } else if self.k > self.n {
-            write!(f, "invalid threshold {}-of-{}; cannot have k > n", self.k, self.n)
-        } else {
-            debug_assert!(self.max.is_some());
-            let max = self.max.unwrap();
-            debug_assert!(self.n > max);
-            write!(f, "invalid threshold {}-of-{}; maximum size is {}", self.k, self.n, max)
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl std::error::Error for ThresholdError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> { None }
 }
 
 /// Check whether `k` and `n` are valid for an instance of [`Self`].
@@ -54,7 +32,7 @@ pub fn validate_k_n<const MAX: usize>(k: usize, n: usize) -> Result<(), Threshol
 ///
 /// If the constant parameter `MAX` is nonzero, it represents a cap on the
 /// `n` value; if `n` exceeds `MAX` then an error is returned on construction.
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Threshold<T, const MAX: usize> {
     k: usize,
     inner: Vec<T>,
@@ -247,70 +225,4 @@ impl<T, const MAX: usize> iter::IntoIterator for Threshold<T, MAX> {
     type IntoIter = vec::IntoIter<T>;
 
     fn into_iter(self) -> Self::IntoIter { self.inner.into_iter() }
-}
-
-impl<T: fmt::Display, const MAX: usize> Threshold<T, MAX> {
-    /// Produces an object which can [`fmt::Display`] the threshold.
-    pub fn display<'s>(&'s self, name: &'s str, show_k: bool) -> impl fmt::Display + 's {
-        ThreshDisplay { name, thresh: self, show_k }
-    }
-}
-
-impl<T: fmt::Debug, const MAX: usize> Threshold<T, MAX> {
-    /// Produces an object which can [`fmt::Debug`] the threshold.
-    pub fn debug<'s>(&'s self, name: &'s str, show_k: bool) -> impl fmt::Debug + 's {
-        ThreshDisplay { name, thresh: self, show_k }
-    }
-}
-
-struct ThreshDisplay<'t, 's, T, const MAX: usize> {
-    name: &'s str,
-    thresh: &'t Threshold<T, MAX>,
-    show_k: bool,
-}
-
-impl<T, const MAX: usize> fmt::Display for ThreshDisplay<'_, '_, T, MAX>
-where
-    T: fmt::Display,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use core::fmt::Write;
-
-        f.write_str(self.name)?;
-        f.write_char('(')?;
-        let inners = if self.show_k {
-            write!(f, "{}", self.thresh.k)?;
-            &self.thresh.inner[0..]
-        } else {
-            write!(f, "{}", self.thresh.inner[0])?;
-            &self.thresh.inner[1..]
-        };
-        for inner in inners {
-            write!(f, ",{}", inner)?;
-        }
-        f.write_char(')')
-    }
-}
-
-impl<T, const MAX: usize> fmt::Debug for ThreshDisplay<'_, '_, T, MAX>
-where
-    T: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use core::fmt::Write;
-
-        f.write_str(self.name)?;
-        f.write_char('(')?;
-        let inners = if self.show_k {
-            write!(f, "{}", self.thresh.k)?;
-            &self.thresh.inner[0..]
-        } else {
-            write!(f, "{:?}", self.thresh.inner[0])?;
-            &self.thresh.inner[1..]
-        };
-        for inner in inners {
-            write!(f, ",{:?}", inner)?;
-        }
-        f.write_char(')')
-    }
 }

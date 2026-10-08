@@ -5,11 +5,7 @@
 //! Tools for determining whether the guarantees offered by the library
 //! actually hold.
 
-use core::fmt;
-#[cfg(feature = "std")]
-use std::error;
 
-use crate::prelude::*;
 use crate::{Miniscript, MiniscriptKey, ScriptContext, Terminal};
 
 /// Params for parsing miniscripts that either non-sane or non-specified(experimental) in the spec.
@@ -24,7 +20,7 @@ use crate::{Miniscript, MiniscriptKey, ScriptContext, Terminal};
 ///    guarantees are not satisfied.
 /// 4. It has repeated public keys
 /// 5. raw pkh fragments without the pk. This could be obtained when parsing miniscript from script
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default, Hash)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Default, Hash)]
 pub struct ExtParams {
     /// Allow parsing of non-safe miniscripts
     pub top_unsafe: bool,
@@ -129,7 +125,7 @@ impl ExtParams {
 /// 3. The script is malleable and thereby some of satisfaction weight
 ///    guarantees are not satisfied.
 /// 4. It has repeated publickeys
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub enum AnalysisError {
     /// Top level is not safe.
     SiglessBranch,
@@ -143,43 +139,6 @@ pub enum AnalysisError {
     Malleable,
     /// Contains partial descriptor raw pkh
     ContainsRawPkh,
-}
-
-impl fmt::Display for AnalysisError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            AnalysisError::SiglessBranch => {
-                f.write_str("All spend paths must require a signature")
-            }
-            AnalysisError::RepeatedPubkeys => {
-                f.write_str("Miniscript contains repeated pubkeys or pubkeyhashes")
-            }
-            AnalysisError::BranchExceedResouceLimits => {
-                f.write_str("At least one spend path exceeds the resource limits(stack depth/satisfaction size..)")
-            }
-            AnalysisError::HeightTimelockCombination => {
-                f.write_str("Contains a combination of heightlock and timelock")
-            }
-            AnalysisError::Malleable => f.write_str("Miniscript is malleable"),
-            AnalysisError::ContainsRawPkh => f.write_str("Miniscript contains raw pkh"),
-        }
-    }
-}
-
-#[cfg(feature = "std")]
-impl error::Error for AnalysisError {
-    fn cause(&self) -> Option<&dyn error::Error> {
-        use self::AnalysisError::*;
-
-        match self {
-            SiglessBranch
-            | RepeatedPubkeys
-            | BranchExceedResouceLimits
-            | HeightTimelockCombination
-            | Malleable
-            | ContainsRawPkh => None,
-        }
-    }
 }
 
 impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {

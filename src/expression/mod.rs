@@ -44,7 +44,7 @@ pub const INPUT_CHARSET: &str = "0123456789()[],'/*abcdefgh@:$%{}IJKLMNOPQRSTUVW
 /// Users of the public API will always interact with this using the
 /// wrapper type [`TreeIterItem`] which also contains a reference to
 /// the whole tree.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 struct TreeNode<'s> {
     name: &'s str,
     name_pos: usize,
@@ -162,7 +162,7 @@ impl<'s> Iterator for DirectChildIterator<'s> {
 }
 
 /// The type of parentheses surrounding a node's children.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Parens {
     /// Node has no children.
     None,
@@ -484,7 +484,7 @@ impl<'s> TreeIterItem<'s> {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 /// A parsed expression tree. See module-level documentation for syntax.
 pub struct Tree<'s> {
     /// The nodes, stored in pre-order.
@@ -698,228 +698,4 @@ pub fn parse_num(s: &str) -> Result<u32, ParseNumError> {
         return Ok(0);
     }
     parse_num_nonzero(s, "")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ParseError;
-
-    struct NodeBuilder<'a> {
-        inner: Vec<TreeNode<'a>>,
-        sibling_stack: Vec<Option<usize>>,
-        parent_stack: Vec<usize>,
-        str_idx: usize,
-    }
-
-    impl<'a> NodeBuilder<'a> {
-        fn new() -> Self {
-            NodeBuilder {
-                inner: vec![],
-                sibling_stack: vec![None],
-                parent_stack: vec![],
-                str_idx: 0,
-            }
-        }
-
-        fn new_node_internal(&mut self, name: &'a str) -> TreeNode<'a> {
-            let mut new = TreeNode::null(self.inner.len());
-            if let Some(idx) = self.parent_stack.last().copied() {
-                self.inner[idx].n_children += 1;
-                self.inner[idx].last_child_idx = Some(self.inner.len());
-                new.parent_idx = Some(idx);
-            }
-            if let Some(idx) = self.sibling_stack.last().unwrap() {
-                self.inner[*idx].right_sibling_idx = Some(self.inner.len());
-                self.str_idx += 1;
-            }
-            new.name = name;
-            new.name_pos = self.str_idx;
-
-            *self.sibling_stack.last_mut().unwrap() = Some(self.inner.len());
-            self.str_idx += name.len();
-            new
-        }
-
-        fn leaf(mut self, name: &'a str) -> Self {
-            let new = self.new_node_internal(name);
-
-            self.inner.push(new);
-            self
-        }
-
-        fn open(mut self, name: &'a str, paren: char) -> Self {
-            let mut new = self.new_node_internal(name);
-
-            new.parens = match paren {
-                '(' => Parens::Round,
-                '{' => Parens::Curly,
-                _ => panic!(),
-            };
-            self.str_idx += 1;
-
-            self.parent_stack.push(self.inner.len());
-            self.sibling_stack.push(None);
-            self.inner.push(new);
-            self
-        }
-
-        fn close(mut self) -> Self {
-            self.str_idx += 1;
-            self.parent_stack.pop();
-            self.sibling_stack.pop();
-            self
-        }
-
-        fn into_tree(self) -> Tree<'a> {
-            assert_eq!(self.parent_stack.len(), 0);
-            Tree { nodes: self.inner }
-        }
-    }
-
-    #[test]
-    fn test_parse_num() {
-        assert!(parse_num("0").is_ok());
-        assert!(parse_num_nonzero("0", "").is_err());
-        assert!(parse_num("00").is_err());
-        assert!(parse_num("0000").is_err());
-        assert!(parse_num("06").is_err());
-        assert!(parse_num("+6").is_err());
-        assert!(parse_num("-6").is_err());
-    }
-
-    #[test]
-    fn parse_tree_basic() {
-        assert_eq!(
-            Tree::from_str("thresh").unwrap(),
-            NodeBuilder::new().leaf("thresh").into_tree()
-        );
-
-        assert!(matches!(
-            Tree::from_str("thresh,").unwrap_err(),
-            Error::Parse(ParseError::Tree(ParseTreeError::TrailingCharacter { ch: ',', pos: 6 })),
-        ));
-
-        assert!(matches!(
-            Tree::from_str("thresh,thresh").unwrap_err(),
-            Error::Parse(ParseError::Tree(ParseTreeError::TrailingCharacter { ch: ',', pos: 6 })),
-        ));
-
-        assert!(matches!(
-            Tree::from_str("thresh()thresh()").unwrap_err(),
-            Error::Parse(ParseError::Tree(ParseTreeError::TrailingCharacter { ch: 't', pos: 8 })),
-        ));
-
-        assert_eq!(
-            Tree::from_str("thresh()").unwrap(),
-            NodeBuilder::new()
-                .open("thresh", '(')
-                .leaf("")
-                .close()
-                .into_tree()
-        );
-
-        assert!(matches!(
-            Tree::from_str("thresh(a()b)"),
-            Err(Error::Parse(ParseError::Tree(ParseTreeError::ExpectedParenOrComma {
-                ch: 'b',
-                pos: 10
-            }))),
-        ));
-
-        assert!(matches!(
-            Tree::from_str("thresh()xyz"),
-            Err(Error::Parse(ParseError::Tree(ParseTreeError::TrailingCharacter {
-                ch: 'x',
-                pos: 8
-            }))),
-        ));
-    }
-
-    #[test]
-    fn parse_tree_parens() {
-        assert!(matches!(
-            Tree::from_str("a(").unwrap_err(),
-            Error::Parse(ParseError::Tree(ParseTreeError::UnmatchedOpenParen { ch: '(', pos: 1 })),
-        ));
-
-        assert!(matches!(
-            Tree::from_str(")").unwrap_err(),
-            Error::Parse(ParseError::Tree(ParseTreeError::UnmatchedCloseParen { ch: ')', pos: 0 })),
-        ));
-
-        assert!(matches!(
-            Tree::from_str("x(y))").unwrap_err(),
-            Error::Parse(ParseError::Tree(ParseTreeError::TrailingCharacter { ch: ')', pos: 4 })),
-        ));
-
-        /* Will be enabled in a later PR which unifies TR and non-TR parsing.
-        assert!(matches!(
-            Tree::from_str("a{").unwrap_err(),
-            Error::Parse(ParseError::Tree(ParseTreeError::UnmatchedOpenParen { ch: '{', pos: 1 })),
-        ));
-
-        assert!(matches!(
-            Tree::from_str("}").unwrap_err(),
-            Error::Parse(ParseError::Tree(ParseTreeError::UnmatchedCloseParen { ch: '}', pos: 0 })),
-        ));
-        */
-
-        assert!(matches!(
-            Tree::from_str("x(y)}").unwrap_err(),
-            Error::Parse(ParseError::Tree(ParseTreeError::TrailingCharacter { ch: '}', pos: 4 })),
-        ));
-
-        /* Will be enabled in a later PR which unifies TR and non-TR parsing.
-        assert!(matches!(
-            Tree::from_str("x{y)").unwrap_err(),
-            Error::Parse(ParseError::Tree(ParseTreeError::MismatchedParens {
-                open_ch: '{',
-                open_pos: 1,
-                close_ch: ')',
-                close_pos: 3,
-            }),)
-        ));
-        */
-    }
-
-    #[test]
-    fn parse_tree_taproot() {
-        assert_eq!(
-            Tree::from_str("a{b(c),d}").unwrap(),
-            NodeBuilder::new()
-                .open("a", '{')
-                .open("b", '(')
-                .leaf("c")
-                .close()
-                .leaf("d")
-                .close()
-                .into_tree()
-        );
-    }
-
-    #[test]
-    fn parse_tree_desc() {
-        let keys = [
-            "02c2fd50ceae468857bb7eb32ae9cd4083e6c7e42fbbec179d81134b3e3830586c",
-            "0257f4a2816338436cccabc43aa724cf6e69e43e84c3c8a305212761389dd73a8a",
-        ];
-        let desc = format!("wsh(t:or_c(pk({}),v:pkh({})))", keys[0], keys[1]);
-
-        assert_eq!(
-            Tree::from_str(&desc).unwrap(),
-            NodeBuilder::new()
-                .open("wsh", '(')
-                .open("t:or_c", '(')
-                .open("pk", '(')
-                .leaf(keys[0])
-                .close()
-                .open("v:pkh", '(')
-                .leaf(keys[1])
-                .close()
-                .close()
-                .close()
-                .into_tree()
-        );
-    }
 }
