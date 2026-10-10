@@ -9,7 +9,6 @@ use core::fmt;
 #[cfg(feature = "std")]
 use std::error;
 
-use crate::prelude::*;
 use crate::{Miniscript, MiniscriptKey, ScriptContext, Terminal};
 
 /// Params for parsing miniscripts that either non-sane or non-specified(experimental) in the spec.
@@ -201,11 +200,9 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
     pub fn has_repeated_keys(&self) -> bool {
         // Simple way to check whether all of these are correct is
         // to have an iterator
-        let all_pkhs_len = self.iter_pk().count();
-
-        let unique_pkhs_len = self.iter_pk().collect::<BTreeSet<_>>().len();
-
-        unique_pkhs_len != all_pkhs_len
+        // NOTE: O(n^2) complexity, since n is small - optimizing heap and flash usage
+        self.iter_pk()
+            .any(|i| self.iter_pk().filter(|j| i == *j).count() > 1)
     }
 
     /// Whether the given miniscript contains a raw pkh fragment
