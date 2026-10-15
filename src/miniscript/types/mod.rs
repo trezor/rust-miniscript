@@ -330,7 +330,7 @@ impl Type {
             Terminal::True => Ok(Self::TRUE),
             Terminal::False => Ok(Self::FALSE),
             Terminal::PkK(..) => Ok(Self::pk_k()),
-            Terminal::PkH(..) | Terminal::RawPkH(..) => Ok(Self::pk_h()),
+            Terminal::PkH(..) => Ok(Self::pk_h()),
             Terminal::Multi(..) => Ok(Self::multi()),
             Terminal::MultiA(..) => Ok(Self::multi_a()),
             Terminal::After(_) => Ok(Self::time()),

@@ -7,7 +7,6 @@
 //! encoding in Bitcoin script, as well as a datatype. Full details
 //! are given on the Miniscript website.
 
-use bitcoin::hashes::Hash;
 use bitcoin::{absolute, opcodes, script};
 
 use crate::miniscript::context::SigType;
@@ -45,11 +44,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Terminal<Pk, Ctx> {
                 .push_opcode(opcodes::all::OP_DUP)
                 .push_opcode(opcodes::all::OP_HASH160)
                 .push_ms_key_hash::<_, Ctx>(pk)
-                .push_opcode(opcodes::all::OP_EQUALVERIFY),
-            Terminal::RawPkH(ref hash) => builder
-                .push_opcode(opcodes::all::OP_DUP)
-                .push_opcode(opcodes::all::OP_HASH160)
-                .push_slice(hash.to_byte_array())
                 .push_opcode(opcodes::all::OP_EQUALVERIFY),
             Terminal::After(t) => builder
                 .push_int(absolute::LockTime::from(t).to_consensus_u32() as i64)

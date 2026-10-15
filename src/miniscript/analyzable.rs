@@ -6,7 +6,7 @@
 //! actually hold.
 
 
-use crate::{Miniscript, MiniscriptKey, ScriptContext, Terminal};
+use crate::{Miniscript, MiniscriptKey, ScriptContext};
 
 /// Params for parsing miniscripts that either non-sane or non-specified(experimental) in the spec.
 /// Used as a parameter [`Miniscript::from_str_ext`] and [`Miniscript::decode_with_ext`].
@@ -167,7 +167,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
 
     /// Whether the given miniscript contains a raw pkh fragment
     pub fn contains_raw_pkh(&self) -> bool {
-        self.iter().any(|ms| matches!(ms.node, Terminal::RawPkH(_)))
+        false
     }
 
     /// Check whether the underlying Miniscript is safe under the current context

@@ -844,7 +844,6 @@ impl ExtData {
             Terminal::False => Self::FALSE,
             Terminal::PkK(ref k) => Self::pk_k::<_, Ctx>(k),
             Terminal::PkH(ref k) => Self::pk_h::<_, Ctx>(Some(k)),
-            Terminal::RawPkH(..) => Self::pk_h::<Pk, Ctx>(None),
             Terminal::Multi(ref thresh) => Self::multi(thresh),
             Terminal::MultiA(ref thresh) => Self::multi_a(thresh.k(), thresh.n()),
             Terminal::After(t) => Self::after(t),

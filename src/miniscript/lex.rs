@@ -36,10 +36,6 @@ pub enum Token {
     Swap,
     Verify,
     Num(u32),
-    Hash20([u8; 20]),
-    Bytes32([u8; 32]),
-    Bytes33([u8; 33]),
-    Bytes65([u8; 65]),
 }
 
 #[derive(Clone)]

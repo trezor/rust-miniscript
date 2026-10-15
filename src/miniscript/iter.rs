@@ -29,7 +29,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
     /// them.
     pub fn branches(&self) -> Vec<&Miniscript<Pk, Ctx>> {
         match self.node {
-            Terminal::PkK(_) | Terminal::PkH(_) | Terminal::RawPkH(_) | Terminal::Multi(_) => {
+            Terminal::PkK(_) | Terminal::PkH(_) | Terminal::Multi(_) => {
                 vec![]
             }
 

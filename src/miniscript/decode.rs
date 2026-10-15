@@ -7,7 +7,6 @@
 
 use core::mem;
 
-use bitcoin::hashes::hash160;
 use sync::Arc;
 
 use crate::iter::TreeLike;
@@ -15,7 +14,6 @@ use crate::miniscript::lex::{Token as Tk, TokenIter};
 use crate::miniscript::limits::{MAX_PUBKEYS_IN_CHECKSIGADD, MAX_PUBKEYS_PER_MULTISIG};
 use crate::miniscript::ScriptContext;
 use crate::prelude::*;
-use crate::primitives::threshold;
 use crate::{
     AbsLockTime, Error, Miniscript, MiniscriptKey, RelLockTime, Threshold, ToPublicKey,
 };
@@ -93,12 +91,6 @@ pub enum Terminal<Pk: MiniscriptKey, Ctx: ScriptContext> {
     PkK(Pk),
     /// `DUP HASH160 <keyhash> EQUALVERIFY`
     PkH(Pk),
-    /// Only for parsing PkH for Script. These raw descriptors are not yet specified in miniscript.
-    /// We only this variant internally for inferring miniscripts from raw Scripts.
-    /// It is not possible to construct this variant from any of the Miniscript APIs.
-    /// We don't have a generic over here because we don't want to user to have any abstract reasoning
-    /// over raw descriptors.
-    RawPkH(hash160::Hash),
     // timelocks
     /// `n CHECKLOCKTIMEVERIFY`
     After(AbsLockTime),
@@ -152,7 +144,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Clone for Terminal<Pk, Ctx> {
         match self {
             Terminal::PkK(ref p) => Terminal::PkK(p.clone()),
             Terminal::PkH(ref p) => Terminal::PkH(p.clone()),
-            Terminal::RawPkH(ref p) => Terminal::RawPkH(*p),
             Terminal::After(ref n) => Terminal::After(*n),
             Terminal::Older(ref n) => Terminal::Older(*n),
             Terminal::True => Terminal::True,
@@ -206,7 +197,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> PartialEq for Terminal<Pk, Ctx> {
             match (me, you) {
                 (Terminal::PkK(key1), Terminal::PkK(key2)) if key1 != key2 => return false,
                 (Terminal::PkH(key1), Terminal::PkH(key2)) if key1 != key2 => return false,
-                (Terminal::RawPkH(h1), Terminal::RawPkH(h2)) if h1 != h2 => return false,
                 (Terminal::After(t1), Terminal::After(t2)) if t1 != t2 => return false,
                 (Terminal::Older(t1), Terminal::Older(t2)) if t1 != t2 => return false,
                 (Terminal::Multi(th1), Terminal::Multi(th2)) if th1 != th2 => return false,
@@ -230,7 +220,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> core::hash::Hash for Terminal<Pk, Ct
             match term {
                 Terminal::PkK(key) => key.hash(hasher),
                 Terminal::PkH(key) => key.hash(hasher),
-                Terminal::RawPkH(h) => h.hash(hasher),
                 Terminal::After(t) => t.hash(hasher),
                 Terminal::Older(t) => t.hash(hasher),
                 Terminal::Thresh(th) => {
@@ -319,33 +308,6 @@ pub fn decode<Ctx: ScriptContext>(
             Some(NonTerm::Expression) => {
                 match_token!(
                     tokens,
-                    // pubkey
-                    Tk::Bytes33(pk) => {
-                        let ret = Ctx::Key::from_slice(&pk)
-                            .map_err(|e| Error::PubKeyCtxError(e, Ctx::name_str()))?;
-                        term.push(Miniscript::pk_k(ret));
-                    },
-                    Tk::Bytes65(pk) => {
-                        let ret = Ctx::Key::from_slice(&pk)
-                            .map_err(|e| Error::PubKeyCtxError(e, Ctx::name_str()))?;
-                        term.push(Miniscript::pk_k(ret));
-                    },
-                    // Note this does not collide with hash32 because they always followed by equal
-                    // and would be parsed in different branch. If we get a naked Bytes32, it must be
-                    // a x-only key
-                    // In miniscript spec, bytes32 only occurs at three places.
-                    // - during parsing XOnly keys in Pk fragment
-                    // - during parsing XOnly keys in MultiA fragment
-                    // - checking for 32 bytes hashlocks (sha256/hash256)
-                    // The second case(MultiA) is disambiguated using NumEqual which is not used anywhere in miniscript
-                    // The third case can only occur hashlocks is disambiguated because hashlocks start from equal, and
-                    // it is impossible for any K type fragment to be followed by EQUAL in miniscript spec. Thus, EQUAL
-                    // after bytes32 means bytes32 is in a hashlock
-                    // Finally for the first case, K being parsed as a solo expression is a Pk type
-                    Tk::Bytes32(pk) => {
-                        let ret = Ctx::Key::from_slice(&pk).map_err(|e| Error::PubKeyCtxError(e, Ctx::name_str()))?;
-                        term.push(Miniscript::pk_k(ret));
-                    },
                     // checksig
                     Tk::CheckSig => {
                         non_term.push(NonTerm::Check);
@@ -397,50 +359,6 @@ pub fn decode<Ctx: ScriptContext>(
                         non_term.push(NonTerm::OrB);
                         non_term.push(NonTerm::Expression);
                         non_term.push(NonTerm::WExpression);
-                    },
-                    // CHECKMULTISIG based multisig
-                    Tk::CheckMultiSig, Tk::Num(n) => {
-                        threshold::validate_k_n::<MAX_PUBKEYS_PER_MULTISIG>(1, n as usize).map_err(Error::Threshold)?;
-
-                        let mut keys = Vec::with_capacity(n as usize);
-                        for _ in 0..n {
-                            match_token!(
-                                tokens,
-                                Tk::Bytes33(pk) => keys.push(<Ctx::Key>::from_slice(&pk)
-                                    .map_err(|e| Error::PubKeyCtxError(e, Ctx::name_str()))?),
-                                Tk::Bytes65(pk) => keys.push(<Ctx::Key>::from_slice(&pk)
-                                    .map_err(|e| Error::PubKeyCtxError(e, Ctx::name_str()))?),
-                            );
-                        }
-                        let k = match_token!(
-                            tokens,
-                            Tk::Num(k) => k,
-                        );
-                        keys.reverse();
-                        let thresh = Threshold::new(k as usize, keys).map_err(Error::Threshold)?;
-                        term.push(Miniscript::multi(thresh));
-                    },
-                    // MultiA
-                    Tk::NumEqual, Tk::Num(k) => {
-                        threshold::validate_k_n::<MAX_PUBKEYS_IN_CHECKSIGADD>(k as usize, k as usize).map_err(Error::Threshold)?;
-
-                        let mut keys = Vec::with_capacity(k as usize); // at least k capacity
-                        while tokens.peek() == Some(&Tk::CheckSigAdd) {
-                            match_token!(
-                                tokens,
-                                Tk::CheckSigAdd, Tk::Bytes32(pk) => keys.push(<Ctx::Key>::from_slice(&pk)
-                                    .map_err(|e| Error::PubKeyCtxError(e, Ctx::name_str()))?),
-                            );
-                        }
-                        // Last key must be with a CheckSig
-                        match_token!(
-                            tokens,
-                            Tk::CheckSig, Tk::Bytes32(pk) => keys.push(<Ctx::Key>::from_slice(&pk)
-                                .map_err(|e| Error::PubKeyCtxError(e, Ctx::name_str()))?),
-                        );
-                        keys.reverse();
-                        let thresh = Threshold::new(k as usize, keys).map_err(Error::Threshold)?;
-                        term.push(Miniscript::multi_a(thresh));
                     },
                 );
             }

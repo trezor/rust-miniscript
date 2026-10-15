@@ -81,7 +81,6 @@ mod private {
                 let new_term = match item.node.node {
                     Terminal::PkK(ref p) => Terminal::PkK(p.clone()),
                     Terminal::PkH(ref p) => Terminal::PkH(p.clone()),
-                    Terminal::RawPkH(ref p) => Terminal::RawPkH(*p),
                     Terminal::After(ref n) => Terminal::After(*n),
                     Terminal::Older(ref n) => Terminal::Older(*n),
                     Terminal::True => Terminal::True,
@@ -183,16 +182,6 @@ mod private {
                 ext: types::extra_props::ExtData::pk_h::<_, Ctx>(Some(&pk)),
                 node: Terminal::PkH(pk),
                 ty: types::Type::pk_h(),
-                phantom: PhantomData,
-            }
-        }
-
-        /// The `expr_raw_pkh` combinator.
-        pub fn expr_raw_pkh(hash: bitcoin::hashes::hash160::Hash) -> Self {
-            Self {
-                node: Terminal::RawPkH(hash),
-                ty: types::Type::pk_h(),
-                ext: types::extra_props::ExtData::pk_h::<Pk, Ctx>(None),
                 phantom: PhantomData,
             }
         }
@@ -310,7 +299,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
                 Alt(..) | OrC(..) => 2,
                 DupIf(..) | AndOr(..) | OrD(..) | OrI(..) => 3,
                 NonZero(..) => 4,
-                PkH(..) | RawPkH(..) => 24,
+                PkH(..) => 24,
 
                 Terminal::PkK(ref pk) => Ctx::pk_len(pk),
                 Terminal::After(n) => script_num_size(n.to_consensus_u32() as usize) + 1,
@@ -432,7 +421,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
             let new_term = match data.node.node {
                 Terminal::PkK(ref p) => Terminal::PkK(t.pk(p)?),
                 Terminal::PkH(ref p) => Terminal::PkH(t.pk(p)?),
-                Terminal::RawPkH(ref p) => Terminal::RawPkH(*p),
                 Terminal::After(n) => Terminal::After(n),
                 Terminal::Older(n) => Terminal::Older(n),
                 Terminal::True => Terminal::True,
@@ -578,10 +566,6 @@ impl<Pk: FromStrKey, Ctx: ScriptContext> FromTree for Miniscript<Pk, Ctx> {
 
             // "pk" and "pkh" are aliases for "c:pk_k" and "c:pk_h" respectively.
             let new = match frag_name {
-                "expr_raw_pkh" => node
-                    .verify_terminal_parent("expr_raw_pkh", "public key hash")
-                    .map(Miniscript::expr_raw_pkh)
-                    .map_err(Error::Parse),
                 "pk" => node
                     .verify_terminal_parent("pk", "public key")
                     .map(Miniscript::pk)
