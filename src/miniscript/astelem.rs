@@ -57,34 +57,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Terminal<Pk, Ctx> {
             Terminal::Older(t) => builder
                 .push_int(t.to_consensus_u32().into())
                 .push_opcode(opcodes::all::OP_CSV),
-            Terminal::Sha256(ref h) => builder
-                .push_opcode(opcodes::all::OP_SIZE)
-                .push_int(32)
-                .push_opcode(opcodes::all::OP_EQUALVERIFY)
-                .push_opcode(opcodes::all::OP_SHA256)
-                .push_slice(Pk::to_sha256(h).to_byte_array())
-                .push_opcode(opcodes::all::OP_EQUAL),
-            Terminal::Hash256(ref h) => builder
-                .push_opcode(opcodes::all::OP_SIZE)
-                .push_int(32)
-                .push_opcode(opcodes::all::OP_EQUALVERIFY)
-                .push_opcode(opcodes::all::OP_HASH256)
-                .push_slice(Pk::to_hash256(h).to_byte_array())
-                .push_opcode(opcodes::all::OP_EQUAL),
-            Terminal::Ripemd160(ref h) => builder
-                .push_opcode(opcodes::all::OP_SIZE)
-                .push_int(32)
-                .push_opcode(opcodes::all::OP_EQUALVERIFY)
-                .push_opcode(opcodes::all::OP_RIPEMD160)
-                .push_slice(Pk::to_ripemd160(h).to_byte_array())
-                .push_opcode(opcodes::all::OP_EQUAL),
-            Terminal::Hash160(ref h) => builder
-                .push_opcode(opcodes::all::OP_SIZE)
-                .push_int(32)
-                .push_opcode(opcodes::all::OP_EQUALVERIFY)
-                .push_opcode(opcodes::all::OP_HASH160)
-                .push_slice(Pk::to_hash160(h).to_byte_array())
-                .push_opcode(opcodes::all::OP_EQUAL),
             Terminal::True => builder.push_opcode(opcodes::OP_TRUE),
             Terminal::False => builder.push_opcode(opcodes::OP_FALSE),
             Terminal::Alt(ref sub) => builder

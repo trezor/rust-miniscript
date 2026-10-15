@@ -33,7 +33,6 @@ pub mod types;
 
 use sync::Arc;
 
-use self::lex::{lex, TokenIter};
 use crate::expression::{FromTree, TreeIterItem};
 pub use crate::miniscript::context::ScriptContext;
 use crate::miniscript::decode::Terminal;
@@ -85,10 +84,6 @@ mod private {
                     Terminal::RawPkH(ref p) => Terminal::RawPkH(*p),
                     Terminal::After(ref n) => Terminal::After(*n),
                     Terminal::Older(ref n) => Terminal::Older(*n),
-                    Terminal::Sha256(ref x) => Terminal::Sha256(x.clone()),
-                    Terminal::Hash256(ref x) => Terminal::Hash256(x.clone()),
-                    Terminal::Ripemd160(ref x) => Terminal::Ripemd160(x.clone()),
-                    Terminal::Hash160(ref x) => Terminal::Hash160(x.clone()),
                     Terminal::True => Terminal::True,
                     Terminal::False => Terminal::False,
                     Terminal::Alt(..) => Terminal::Alt(stack.pop().unwrap()),
@@ -222,46 +217,6 @@ mod private {
             }
         }
 
-        /// The `sha256` combinator.
-        pub const fn sha256(hash: Pk::Sha256) -> Self {
-            Self {
-                node: Terminal::Sha256(hash),
-                ty: types::Type::hash(),
-                ext: types::extra_props::ExtData::sha256(),
-                phantom: PhantomData,
-            }
-        }
-
-        /// The `hash256` combinator.
-        pub const fn hash256(hash: Pk::Hash256) -> Self {
-            Self {
-                node: Terminal::Hash256(hash),
-                ty: types::Type::hash(),
-                ext: types::extra_props::ExtData::hash256(),
-                phantom: PhantomData,
-            }
-        }
-
-        /// The `ripemd160` combinator.
-        pub const fn ripemd160(hash: Pk::Ripemd160) -> Self {
-            Self {
-                node: Terminal::Ripemd160(hash),
-                ty: types::Type::hash(),
-                ext: types::extra_props::ExtData::ripemd160(),
-                phantom: PhantomData,
-            }
-        }
-
-        /// The `hash160` combinator.
-        pub const fn hash160(hash: Pk::Hash160) -> Self {
-            Self {
-                node: Terminal::Hash160(hash),
-                ty: types::Type::hash(),
-                ext: types::extra_props::ExtData::hash160(),
-                phantom: PhantomData,
-            }
-        }
-
         // non-const because Thresh::n is not because Vec::len is not (needs Rust 1.87)
         /// The `multi` combinator.
         pub fn multi(thresh: crate::Threshold<Pk, MAX_PUBKEYS_PER_MULTISIG>) -> Self {
@@ -356,8 +311,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
                 DupIf(..) | AndOr(..) | OrD(..) | OrI(..) => 3,
                 NonZero(..) => 4,
                 PkH(..) | RawPkH(..) => 24,
-                Ripemd160(..) | Hash160(..) => 21 + 6,
-                Sha256(..) | Hash256(..) => 33 + 6,
 
                 Terminal::PkK(ref pk) => Ctx::pk_len(pk),
                 Terminal::After(n) => script_num_size(n.to_consensus_u32() as usize) + 1,
@@ -398,50 +351,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
             .sat_data
             .map(|data| data.max_witness_stack_count + 1)
             .ok_or(Error::ImpossibleSatisfaction)
-    }
-}
-
-impl<Ctx: ScriptContext> Miniscript<Ctx::Key, Ctx> {
-    /// Attempt to decode a Miniscript from Script, checking only for consensus compatibility,
-    /// and no other checks.
-    ///
-    /// It may make sense to use this method when parsing Script that is already
-    /// embedded in the chain. While it is inadvisable to use insane Miniscripts,
-    /// once it's on the chain you don't have much choice anymore.
-    pub fn decode_consensus(script: &script::Script) -> Result<Miniscript<Ctx::Key, Ctx>, Error> {
-        Miniscript::decode_with_ext(script, &ExtParams::allow_all())
-    }
-
-    /// Attempt to decode a Miniscript from Script, specifying which validation parameters to apply.
-    pub fn decode_with_ext(
-        script: &script::Script,
-        ext: &ExtParams,
-    ) -> Result<Miniscript<Ctx::Key, Ctx>, Error> {
-        let tokens = lex(script)?;
-        let mut iter = TokenIter::new(tokens);
-
-        let top = decode::decode(&mut iter)?;
-        Ctx::check_global_validity(&top)?;
-        let type_check = types::Type::type_check(&top.node)?;
-        if type_check.corr.base != types::Base::B {
-            return Err(Error::NonTopLevel);
-        };
-        if let Some(_leading) = iter.next() {
-            Err(Error::Trailing)
-        } else {
-            top.ext_check(ext)?;
-            Ok(top)
-        }
-    }
-
-    /// Attempt to parse a Script into Miniscript representation.
-    ///
-    /// This function will fail parsing for scripts that do not clear the
-    /// [`Miniscript::sanity_check`] checks. Use [`Miniscript::decode_consensus`] to
-    /// parse such scripts.
-    pub fn decode(script: &script::Script) -> Result<Miniscript<Ctx::Key, Ctx>, Error> {
-        let ms = Self::decode_with_ext(script, &ExtParams::sane())?;
-        Ok(ms)
     }
 }
 
@@ -526,10 +435,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
                 Terminal::RawPkH(ref p) => Terminal::RawPkH(*p),
                 Terminal::After(n) => Terminal::After(n),
                 Terminal::Older(n) => Terminal::Older(n),
-                Terminal::Sha256(ref x) => Terminal::Sha256(t.sha256(x)?),
-                Terminal::Hash256(ref x) => Terminal::Hash256(t.hash256(x)?),
-                Terminal::Ripemd160(ref x) => Terminal::Ripemd160(t.ripemd160(x)?),
-                Terminal::Hash160(ref x) => Terminal::Hash160(t.hash160(x)?),
                 Terminal::True => Terminal::True,
                 Terminal::False => Terminal::False,
                 Terminal::Alt(..) => Terminal::Alt(translated.pop().unwrap()),
@@ -700,22 +605,6 @@ impl<Pk: FromStrKey, Ctx: ScriptContext> FromTree for Miniscript<Pk, Ctx> {
                 "older" => node
                     .verify_older()
                     .map(Miniscript::older)
-                    .map_err(Error::Parse),
-                "sha256" => node
-                    .verify_terminal_parent("sha256", "hash")
-                    .map(Miniscript::sha256)
-                    .map_err(Error::Parse),
-                "hash256" => node
-                    .verify_terminal_parent("hash256", "hash")
-                    .map(Miniscript::hash256)
-                    .map_err(Error::Parse),
-                "ripemd160" => node
-                    .verify_terminal_parent("ripemd160", "hash")
-                    .map(Miniscript::ripemd160)
-                    .map_err(Error::Parse),
-                "hash160" => node
-                    .verify_terminal_parent("hash160", "hash")
-                    .map(Miniscript::hash160)
                     .map_err(Error::Parse),
                 "1" => {
                     node.verify_n_children("1", 0..=0)

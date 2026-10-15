@@ -7,7 +7,7 @@
 
 use core::mem;
 
-use bitcoin::hashes::{hash160, ripemd160, sha256, Hash};
+use bitcoin::hashes::hash160;
 use sync::Arc;
 
 use crate::iter::TreeLike;
@@ -17,7 +17,7 @@ use crate::miniscript::ScriptContext;
 use crate::prelude::*;
 use crate::primitives::threshold;
 use crate::{
-    hash256, AbsLockTime, Error, Miniscript, MiniscriptKey, RelLockTime, Threshold, ToPublicKey,
+    AbsLockTime, Error, Miniscript, MiniscriptKey, RelLockTime, Threshold, ToPublicKey,
 };
 
 /// Trait for parsing keys from byte slices
@@ -104,15 +104,6 @@ pub enum Terminal<Pk: MiniscriptKey, Ctx: ScriptContext> {
     After(AbsLockTime),
     /// `n CHECKSEQUENCEVERIFY`
     Older(RelLockTime),
-    // hashlocks
-    /// `SIZE 32 EQUALVERIFY SHA256 <hash> EQUAL`
-    Sha256(Pk::Sha256),
-    /// `SIZE 32 EQUALVERIFY HASH256 <hash> EQUAL`
-    Hash256(Pk::Hash256),
-    /// `SIZE 32 EQUALVERIFY RIPEMD160 <hash> EQUAL`
-    Ripemd160(Pk::Ripemd160),
-    /// `SIZE 32 EQUALVERIFY HASH160 <hash> EQUAL`
-    Hash160(Pk::Hash160),
     // Wrappers
     /// `TOALTSTACK [E] FROMALTSTACK`
     Alt(Arc<Miniscript<Pk, Ctx>>),
@@ -164,10 +155,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Clone for Terminal<Pk, Ctx> {
             Terminal::RawPkH(ref p) => Terminal::RawPkH(*p),
             Terminal::After(ref n) => Terminal::After(*n),
             Terminal::Older(ref n) => Terminal::Older(*n),
-            Terminal::Sha256(ref x) => Terminal::Sha256(x.clone()),
-            Terminal::Hash256(ref x) => Terminal::Hash256(x.clone()),
-            Terminal::Ripemd160(ref x) => Terminal::Ripemd160(x.clone()),
-            Terminal::Hash160(ref x) => Terminal::Hash160(x.clone()),
             Terminal::True => Terminal::True,
             Terminal::False => Terminal::False,
             Terminal::Alt(ref sub) => Terminal::Alt(Arc::new(Miniscript::clone(sub))),
@@ -222,10 +209,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> PartialEq for Terminal<Pk, Ctx> {
                 (Terminal::RawPkH(h1), Terminal::RawPkH(h2)) if h1 != h2 => return false,
                 (Terminal::After(t1), Terminal::After(t2)) if t1 != t2 => return false,
                 (Terminal::Older(t1), Terminal::Older(t2)) if t1 != t2 => return false,
-                (Terminal::Sha256(h1), Terminal::Sha256(h2)) if h1 != h2 => return false,
-                (Terminal::Hash256(h1), Terminal::Hash256(h2)) if h1 != h2 => return false,
-                (Terminal::Ripemd160(h1), Terminal::Ripemd160(h2)) if h1 != h2 => return false,
-                (Terminal::Hash160(h1), Terminal::Hash160(h2)) if h1 != h2 => return false,
                 (Terminal::Multi(th1), Terminal::Multi(th2)) if th1 != th2 => return false,
                 (Terminal::MultiA(th1), Terminal::MultiA(th2)) if th1 != th2 => return false,
                 _ => {
@@ -250,10 +233,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> core::hash::Hash for Terminal<Pk, Ct
                 Terminal::RawPkH(h) => h.hash(hasher),
                 Terminal::After(t) => t.hash(hasher),
                 Terminal::Older(t) => t.hash(hasher),
-                Terminal::Sha256(h) => h.hash(hasher),
-                Terminal::Hash256(h) => h.hash(hasher),
-                Terminal::Ripemd160(h) => h.hash(hasher),
-                Terminal::Hash160(h) => h.hash(hasher),
                 Terminal::Thresh(th) => {
                     th.k().hash(hasher);
                     th.n().hash(hasher);
@@ -377,45 +356,6 @@ pub fn decode<Ctx: ScriptContext>(
                         tokens,
                         Tk::Equal => match_token!(
                             tokens,
-                            Tk::Hash20(hash) => match_token!(
-                                tokens,
-                                Tk::Hash160 => match_token!(
-                                    tokens,
-                                    Tk::Dup => {
-                                        term.push(Miniscript::expr_raw_pkh(
-                                            hash160::Hash::from_byte_array(hash)
-                                        ));
-                                    },
-                                    Tk::Verify, Tk::Equal, Tk::Num(32), Tk::Size => {
-                                        non_term.push(NonTerm::Verify);
-                                        term.push(Miniscript::hash160(
-                                            hash160::Hash::from_byte_array(hash)
-                                        ));
-                                    },
-                                ),
-                                Tk::Ripemd160, Tk::Verify, Tk::Equal, Tk::Num(32), Tk::Size => {
-                                    non_term.push(NonTerm::Verify);
-                                    term.push(Miniscript::ripemd160(
-                                        ripemd160::Hash::from_byte_array(hash)
-                                    ));
-                                },
-                            ),
-                            // Tk::Hash20(hash),
-                            Tk::Bytes32(hash) => match_token!(
-                                tokens,
-                                Tk::Sha256, Tk::Verify, Tk::Equal, Tk::Num(32), Tk::Size => {
-                                    non_term.push(NonTerm::Verify);
-                                    term.push(Miniscript::sha256(
-                                        sha256::Hash::from_byte_array(hash)
-                                    ));
-                                },
-                                Tk::Hash256, Tk::Verify, Tk::Equal, Tk::Num(32), Tk::Size => {
-                                    non_term.push(NonTerm::Verify);
-                                    term.push(Miniscript::hash256(
-                                        hash256::Hash::from_byte_array(hash)
-                                    ));
-                                },
-                            ),
                             Tk::Num(k) => {
                                 non_term.push(NonTerm::Verify);
                                 non_term.push(NonTerm::ThreshW {
@@ -439,54 +379,6 @@ pub fn decode<Ctx: ScriptContext>(
                         => term.push(Miniscript::older(RelLockTime::from_consensus(n).map_err(Error::RelativeLockTime)?)),
                     Tk::CheckLockTimeVerify, Tk::Num(n)
                         => term.push(Miniscript::after(AbsLockTime::from_consensus(n).map_err(Error::AbsoluteLockTime)?)),
-                    // hashlocks
-                    Tk::Equal => match_token!(
-                        tokens,
-                        Tk::Bytes32(hash) => match_token!(
-                            tokens,
-                            Tk::Sha256,
-                            Tk::Verify,
-                            Tk::Equal,
-                            Tk::Num(32),
-                            Tk::Size => term.push(Miniscript::sha256(
-                                sha256::Hash::from_byte_array(hash)
-                            )),
-                            Tk::Hash256,
-                            Tk::Verify,
-                            Tk::Equal,
-                            Tk::Num(32),
-                            Tk::Size => term.push(Miniscript::hash256(
-                                hash256::Hash::from_byte_array(hash)
-                            )),
-                        ),
-                        Tk::Hash20(hash) => match_token!(
-                            tokens,
-                            Tk::Ripemd160,
-                            Tk::Verify,
-                            Tk::Equal,
-                            Tk::Num(32),
-                            Tk::Size => term.push(Miniscript::ripemd160(
-                                ripemd160::Hash::from_byte_array(hash)
-                            )),
-                            Tk::Hash160,
-                            Tk::Verify,
-                            Tk::Equal,
-                            Tk::Num(32),
-                            Tk::Size => term.push(Miniscript::hash160(
-                                hash160::Hash::from_byte_array(hash)
-                            )),
-                        ),
-                        // thresholds
-                        Tk::Num(k) => {
-                            non_term.push(NonTerm::ThreshW {
-                                k: k as usize,
-                                n: 0
-                            });
-                            // note we do *not* expect an `Expression` here;
-                            // the `ThreshW` handler below will look for
-                            // `OP_ADD` or not and do the right thing
-                        },
-                    ),
                     // most other fragments
                     Tk::Num(0) => term.push(Miniscript::FALSE),
                     Tk::Num(1) => term.push(Miniscript::TRUE),

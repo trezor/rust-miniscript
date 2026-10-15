@@ -341,106 +341,6 @@ impl ExtData {
         }
     }
 
-    /// Extra properties for the `sha256` fragment.
-    pub const fn sha256() -> Self {
-        ExtData {
-            pk_cost: 33 + 6,
-            has_free_verify: true,
-            static_ops: 4,
-            sat_data: Some(SatData {
-                max_witness_stack_size: 33,
-                max_witness_stack_count: 1,
-                max_script_sig_size: 33,
-                max_exec_stack_count: 2, // either size <32> or <sha256> <32 byte>
-                max_exec_op_count: 0,
-            }),
-            dissat_data: Some(SatData {
-                max_witness_stack_size: 33,
-                max_witness_stack_count: 2,
-                max_script_sig_size: 33,
-                max_exec_stack_count: 2, // either size <32> or <sha256> <32 byte>
-                max_exec_op_count: 0,
-            }),
-            timelock_info: TimelockInfo::new(),
-            tree_height: 0,
-        }
-    }
-
-    /// Extra properties for the `hash256` fragment.
-    pub const fn hash256() -> Self {
-        ExtData {
-            pk_cost: 33 + 6,
-            has_free_verify: true,
-            static_ops: 4,
-            sat_data: Some(SatData {
-                max_witness_stack_size: 33,
-                max_witness_stack_count: 1,
-                max_script_sig_size: 33,
-                max_exec_stack_count: 2, // either size <32> or <sha256> <32 byte>
-                max_exec_op_count: 0,
-            }),
-            dissat_data: Some(SatData {
-                max_witness_stack_size: 33,
-                max_witness_stack_count: 2,
-                max_script_sig_size: 33,
-                max_exec_stack_count: 2, // either size <32> or <sha256> <32 byte>
-                max_exec_op_count: 0,
-            }),
-            timelock_info: TimelockInfo::new(),
-            tree_height: 0,
-        }
-    }
-
-    /// Extra properties for the `ripemd160` fragment.
-    pub const fn ripemd160() -> Self {
-        ExtData {
-            pk_cost: 21 + 6,
-            has_free_verify: true,
-            static_ops: 4,
-            sat_data: Some(SatData {
-                max_witness_stack_size: 33,
-                max_witness_stack_count: 1,
-                max_script_sig_size: 33,
-                max_exec_stack_count: 2, // either size <32> or <sha256> <32 byte>
-                max_exec_op_count: 0,
-            }),
-            dissat_data: Some(SatData {
-                max_witness_stack_size: 33,
-                max_witness_stack_count: 2,
-                max_script_sig_size: 33,
-                max_exec_stack_count: 2, // either size <32> or <sha256> <32 byte>
-                max_exec_op_count: 0,
-            }),
-            timelock_info: TimelockInfo::new(),
-            tree_height: 0,
-        }
-    }
-
-    /// Extra properties for the `hash160` fragment.
-    pub const fn hash160() -> Self {
-        ExtData {
-            pk_cost: 21 + 6,
-            has_free_verify: true,
-            static_ops: 4,
-            sat_data: Some(SatData {
-                max_witness_stack_size: 33,
-                max_witness_stack_count: 1,
-                max_script_sig_size: 33,
-                max_exec_stack_count: 2, // either size <32> or <sha256> <32 byte>
-                max_exec_op_count: 0,
-            }),
-            dissat_data: Some(SatData {
-                max_witness_stack_size: 33,
-                max_witness_stack_count: 2,
-                max_script_sig_size: 33,
-                max_exec_stack_count: 2, // either size <32> or <sha256> <32 byte>
-                max_exec_op_count: 0,
-            }),
-            timelock_info: TimelockInfo::new(),
-            tree_height: 0,
-        }
-    }
-
     /// Extra properties for the `after` fragment.
     pub fn after(t: AbsLockTime) -> Self {
         ExtData {
@@ -949,10 +849,6 @@ impl ExtData {
             Terminal::MultiA(ref thresh) => Self::multi_a(thresh.k(), thresh.n()),
             Terminal::After(t) => Self::after(t),
             Terminal::Older(t) => Self::older(t),
-            Terminal::Sha256(..) => Self::sha256(),
-            Terminal::Hash256(..) => Self::hash256(),
-            Terminal::Ripemd160(..) => Self::ripemd160(),
-            Terminal::Hash160(..) => Self::hash160(),
             Terminal::Alt(ref sub) => Self::cast_alt(sub.ext),
             Terminal::Swap(ref sub) => Self::cast_swap(sub.ext),
             Terminal::Check(ref sub) => Self::cast_check(sub.ext),

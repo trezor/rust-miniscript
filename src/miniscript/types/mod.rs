@@ -110,9 +110,6 @@ impl Type {
         Type { corr: Correctness::multi_a(), mall: Malleability::multi_a() }
     }
 
-    /// Constructor for the type of all the hash fragments.
-    pub const fn hash() -> Self { Type { corr: Correctness::hash(), mall: Malleability::hash() } }
-
     /// Constructor for the type of the `after` and `older` fragments.
     pub const fn time() -> Self { Type { corr: Correctness::time(), mall: Malleability::time() } }
 
@@ -338,10 +335,6 @@ impl Type {
             Terminal::MultiA(..) => Ok(Self::multi_a()),
             Terminal::After(_) => Ok(Self::time()),
             Terminal::Older(_) => Ok(Self::time()),
-            Terminal::Sha256(..) => Ok(Self::hash()),
-            Terminal::Hash256(..) => Ok(Self::hash()),
-            Terminal::Ripemd160(..) => Ok(Self::hash()),
-            Terminal::Hash160(..) => Ok(Self::hash()),
             Terminal::Alt(ref sub) => wrap_err(Self::cast_alt(sub.ty)),
             Terminal::Swap(ref sub) => wrap_err(Self::cast_swap(sub.ty)),
             Terminal::Check(ref sub) => wrap_err(Self::cast_check(sub.ty)),
