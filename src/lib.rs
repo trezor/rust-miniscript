@@ -237,8 +237,6 @@ pub trait ForEachKey<Pk: MiniscriptKey> {
 /// Miniscript
 
 pub enum Error {
-    /// Error when lexing a bitcoin Script.
-    ScriptLexer(crate::miniscript::lex::Error),
     /// While parsing backward, hit beginning of script
     UnexpectedStart,
     /// Got something we were not expecting
@@ -298,11 +296,6 @@ impl From<ParseThresholdError> for Error {
 
 // https://github.com/sipa/miniscript/pull/5 for discussion on this number
 const MAX_RECURSION_DEPTH: u32 = 402;
-
-#[doc(hidden)]
-impl From<miniscript::lex::Error> for Error {
-    fn from(e: miniscript::lex::Error) -> Error { Error::ScriptLexer(e) }
-}
 
 #[doc(hidden)]
 impl From<miniscript::types::Error> for Error {
