@@ -32,7 +32,7 @@ use core::str::FromStr;
 
 pub use self::error::{ParseNumError, ParseThresholdError, ParseTreeError};
 use crate::blanket_traits::StaticDebugAndDisplay;
-use crate::descriptor::checksum::verify_checksum;
+use crate::descriptor::checksum::verify_ascii;
 use crate::prelude::*;
 use crate::{AbsLockTime, Error, ParseError, RelLockTime, Threshold, MAX_RECURSION_DEPTH};
 
@@ -511,7 +511,7 @@ impl<'a> Tree<'a> {
         // First, scan through string to make sure it is well-formed.
         // Do ASCII/checksum check first; after this we can use .bytes().enumerate() rather
         // than .char_indices(), which is *significantly* faster.
-        let s = verify_checksum(s)?;
+        let s = verify_ascii(s)?;
 
         let mut n_nodes = 1;
         let mut max_depth = 0;
