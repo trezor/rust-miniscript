@@ -70,15 +70,13 @@ mod util;
 
 use core::{hash, str};
 
-use bitcoin::hashes::{hash160, Hash};
-
 pub use crate::blanket_traits::FromStrKey;
 pub use crate::error::ParseError;
 pub use crate::expression::{ParseNumError, ParseThresholdError, ParseTreeError};
 pub use crate::miniscript::analyzable::{AnalysisError, ExtParams};
 pub use crate::miniscript::context::{ScriptContext, Segwitv0, SigType, Tap};
 pub use crate::miniscript::decode::Terminal;
-pub use crate::miniscript::{hash256, Miniscript};
+pub use crate::miniscript::Miniscript;
 use crate::prelude::*;
 pub use crate::primitives::absolute_locktime::{AbsLockTime, AbsLockTimeError};
 pub use crate::primitives::relative_locktime::{RelLockTime, RelLockTimeError};
@@ -123,17 +121,6 @@ pub trait ToPublicKey: MiniscriptKey {
     fn to_x_only_pubkey(&self) -> bitcoin::secp256k1::XOnlyPublicKey {
         let pk = self.to_public_key();
         bitcoin::secp256k1::XOnlyPublicKey::from(pk.inner)
-    }
-
-    /// Obtain the public key hash for this MiniscriptKey
-    /// Expects an argument to specify the signature type.
-    /// This would determine whether to serialize the key as 32 byte x-only pubkey
-    /// or regular public key when computing the hash160
-    fn to_pubkeyhash(&self, sig_type: SigType) -> hash160::Hash {
-        match sig_type {
-            SigType::Ecdsa => hash160::Hash::hash(&self.to_public_key().to_bytes()),
-            SigType::Schnorr => hash160::Hash::hash(&self.to_x_only_pubkey().serialize()),
-        }
     }
 }
 
