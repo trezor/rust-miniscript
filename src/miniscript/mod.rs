@@ -12,7 +12,7 @@
 //! components of the AST.
 //!
 
-use core::{hash, str};
+use core::str;
 
 use bitcoin::script;
 
@@ -354,13 +354,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> PartialEq for Miniscript<Pk, Ctx> {
 /// The type information and extra properties are implied by the AST.
 impl<Pk: MiniscriptKey, Ctx: ScriptContext> Eq for Miniscript<Pk, Ctx> {}
 
-/// `Hash` of `Miniscript` must depend only on node and not the type information.
-///
-/// The type information and extra properties are implied by the AST.
-impl<Pk: MiniscriptKey, Ctx: ScriptContext> hash::Hash for Miniscript<Pk, Ctx> {
-    fn hash<H: hash::Hasher>(&self, state: &mut H) { self.node.hash(state); }
-}
-
 impl<Pk: MiniscriptKey, Ctx: ScriptContext> ForEachKey<Pk> for Miniscript<Pk, Ctx> {
     fn for_each_key<'a, F: FnMut(&'a Pk) -> bool>(&'a self, mut pred: F) -> bool {
         for ms in self.pre_order_iter() {
@@ -690,16 +683,5 @@ impl<Pk: FromStrKey, Ctx: ScriptContext> str::FromStr for Miniscript<Pk, Ctx> {
     fn from_str(s: &str) -> Result<Miniscript<Pk, Ctx>, Error> {
         let ms = Self::from_str_ext(s, &ExtParams::sane())?;
         Ok(ms)
-    }
-}
-
-/// Provides a Double SHA256 `Hash` type that displays forwards.
-pub mod hash256 {
-    use bitcoin::hashes::{hash_newtype, sha256d};
-
-    hash_newtype! {
-        /// A hash256 of preimage.
-        #[hash_newtype(forward)]
-        pub struct Hash(sha256d::Hash);
     }
 }

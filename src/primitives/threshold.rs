@@ -32,7 +32,7 @@ pub fn validate_k_n<const MAX: usize>(k: usize, n: usize) -> Result<(), Threshol
 ///
 /// If the constant parameter `MAX` is nonzero, it represents a cap on the
 /// `n` value; if `n` exceeds `MAX` then an error is returned on construction.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Threshold<T, const MAX: usize> {
     k: usize,
     inner: Vec<T>,

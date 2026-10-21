@@ -19,7 +19,7 @@ use crate::{
 };
 
 /// Contents of a "sortedmulti" descriptor
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SortedMultiVec<Pk: MiniscriptKey, Ctx: ScriptContext> {
     inner: Threshold<Pk, MAX_PUBKEYS_PER_MULTISIG>,
     /// The current ScriptContext for sortedmulti

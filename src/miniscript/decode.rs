@@ -185,28 +185,6 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> PartialEq for Terminal<Pk, Ctx> {
 }
 impl<Pk: MiniscriptKey, Ctx: ScriptContext> Eq for Terminal<Pk, Ctx> {}
 
-impl<Pk: MiniscriptKey, Ctx: ScriptContext> core::hash::Hash for Terminal<Pk, Ctx> {
-    fn hash<H: core::hash::Hasher>(&self, hasher: &mut H) {
-        for term in self.pre_order_iter() {
-            mem::discriminant(term).hash(hasher);
-            match term {
-                Terminal::PkK(key) => key.hash(hasher),
-                Terminal::PkH(key) => key.hash(hasher),
-                Terminal::After(t) => t.hash(hasher),
-                Terminal::Older(t) => t.hash(hasher),
-                Terminal::Thresh(th) => {
-                    th.k().hash(hasher);
-                    th.n().hash(hasher);
-                    // The actual children will be hashed when we iterate
-                }
-                Terminal::Multi(th) => th.hash(hasher),
-                Terminal::MultiA(th) => th.hash(hasher),
-                _ => {}
-            }
-        }
-    }
-}
-
 /// Decoding error while parsing keys
 #[derive(Clone, PartialEq, Eq)]
 pub enum KeyError {

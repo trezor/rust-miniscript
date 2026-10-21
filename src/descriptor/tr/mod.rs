@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
 
-use core::hash;
-
 use bitcoin::{opcodes, ScriptBuf};
 use sync::Arc;
 
@@ -61,13 +59,6 @@ impl<Pk: MiniscriptKey> PartialEq for Tr<Pk> {
 }
 
 impl<Pk: MiniscriptKey> Eq for Tr<Pk> {}
-
-impl<Pk: MiniscriptKey> hash::Hash for Tr<Pk> {
-    fn hash<H: hash::Hasher>(&self, state: &mut H) {
-        self.internal_key.hash(state);
-        self.tree.hash(state);
-    }
-}
 
 impl<Pk: MiniscriptKey> Tr<Pk> {
     /// Create a new [`Tr`] descriptor from internal key and [`TapTree`]

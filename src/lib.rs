@@ -68,7 +68,7 @@ mod primitives;
 
 mod util;
 
-use core::{hash, str};
+use core::str;
 
 pub use crate::blanket_traits::FromStrKey;
 pub use crate::error::ParseError;
@@ -83,7 +83,7 @@ pub use crate::primitives::relative_locktime::{RelLockTime, RelLockTimeError};
 pub use crate::primitives::threshold::{Threshold, ThresholdError};
 
 /// Public key trait which can be converted to Hash type
-pub trait MiniscriptKey: Clone + Eq + Ord + hash::Hash {
+pub trait MiniscriptKey: Clone + Eq + Ord {
     /// Returns true if the pubkey is uncompressed. Defaults to `false`.
     fn is_uncompressed(&self) -> bool { false }
 

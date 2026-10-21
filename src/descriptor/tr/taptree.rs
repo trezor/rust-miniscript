@@ -14,7 +14,7 @@ use crate::{Miniscript, MiniscriptKey, ToPublicKey};
 pub struct TapTreeDepthError;
 
 /// A Taproot Tree representation.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct TapTree<Pk: MiniscriptKey> {
     depths_leaves: Vec<(u8, Arc<Miniscript<Pk, Tap>>)>,
 }
