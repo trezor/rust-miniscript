@@ -33,25 +33,6 @@ pub struct Tr<Pk: MiniscriptKey> {
     spend_info: Mutex<Option<Arc<TrSpendInfo<Pk>>>>,
 }
 
-impl<Pk: MiniscriptKey> Clone for Tr<Pk> {
-    fn clone(&self) -> Self {
-        // When cloning, construct a new Mutex so that distinct clones don't
-        // cause blocking between each other. We clone only the internal `Arc`,
-        // so the clone is always cheap (in both time and space)
-        Self {
-            internal_key: self.internal_key.clone(),
-            tree: self.tree.clone(),
-            spend_info: Mutex::new(
-                self.spend_info
-                    .lock()
-                    .expect("Lock poisoned")
-                    .as_ref()
-                    .map(Arc::clone),
-            ),
-        }
-    }
-}
-
 impl<Pk: MiniscriptKey> PartialEq for Tr<Pk> {
     fn eq(&self, other: &Self) -> bool {
         self.internal_key == other.internal_key && self.tree == other.tree

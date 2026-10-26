@@ -44,7 +44,6 @@ mod private {
 
     use super::limits::{MAX_PUBKEYS_IN_CHECKSIGADD, MAX_PUBKEYS_PER_MULTISIG};
     use super::types::{self, ExtData, Type};
-    use crate::iter::TreeLike as _;
     pub use crate::miniscript::context::ScriptContext;
     use crate::prelude::sync::Arc;
     use crate::{AbsLockTime, Error, MiniscriptKey, RelLockTime, Terminal, MAX_RECURSION_DEPTH};
@@ -59,71 +58,6 @@ mod private {
         pub ext: types::extra_props::ExtData,
         /// Context PhantomData. Only accessible inside this crate
         phantom: PhantomData<Ctx>,
-    }
-
-    impl<Pk: MiniscriptKey, Ctx: ScriptContext> Clone for Miniscript<Pk, Ctx> {
-        /// We implement clone as a "deep clone" which reconstructs the entire tree.
-        ///
-        /// If users just want to clone Arcs they can use Arc::clone themselves.
-        /// Note that if a Miniscript was constructed using shared Arcs, the result
-        /// of calling `clone` will no longer have shared Arcs. So there is no
-        /// pleasing everyone. But for the two common cases:
-        ///
-        /// * Users don't care about sharing at all, and they can call `Arc::clone`
-        ///   on an `Arc<Miniscript>`.
-        /// * Users want a deep copy which does not share any nodes with the original
-        ///   (for example, because they have keys that have interior mutability),
-        ///   and they can call `Miniscript::clone`.
-        fn clone(&self) -> Self {
-            let mut stack = vec![];
-            for item in self.rtl_post_order_iter() {
-                let new_term = match item.node.node {
-                    Terminal::PkK(ref p) => Terminal::PkK(p.clone()),
-                    Terminal::PkH(ref p) => Terminal::PkH(p.clone()),
-                    Terminal::After(ref n) => Terminal::After(*n),
-                    Terminal::Older(ref n) => Terminal::Older(*n),
-                    Terminal::True => Terminal::True,
-                    Terminal::False => Terminal::False,
-                    Terminal::Alt(..) => Terminal::Alt(stack.pop().unwrap()),
-                    Terminal::Swap(..) => Terminal::Swap(stack.pop().unwrap()),
-                    Terminal::Check(..) => Terminal::Check(stack.pop().unwrap()),
-                    Terminal::DupIf(..) => Terminal::DupIf(stack.pop().unwrap()),
-                    Terminal::Verify(..) => Terminal::Verify(stack.pop().unwrap()),
-                    Terminal::NonZero(..) => Terminal::NonZero(stack.pop().unwrap()),
-                    Terminal::ZeroNotEqual(..) => Terminal::ZeroNotEqual(stack.pop().unwrap()),
-                    Terminal::AndV(..) => {
-                        Terminal::AndV(stack.pop().unwrap(), stack.pop().unwrap())
-                    }
-                    Terminal::AndB(..) => {
-                        Terminal::AndB(stack.pop().unwrap(), stack.pop().unwrap())
-                    }
-                    Terminal::AndOr(..) => Terminal::AndOr(
-                        stack.pop().unwrap(),
-                        stack.pop().unwrap(),
-                        stack.pop().unwrap(),
-                    ),
-                    Terminal::OrB(..) => Terminal::OrB(stack.pop().unwrap(), stack.pop().unwrap()),
-                    Terminal::OrD(..) => Terminal::OrD(stack.pop().unwrap(), stack.pop().unwrap()),
-                    Terminal::OrC(..) => Terminal::OrC(stack.pop().unwrap(), stack.pop().unwrap()),
-                    Terminal::OrI(..) => Terminal::OrI(stack.pop().unwrap(), stack.pop().unwrap()),
-                    Terminal::Thresh(ref thresh) => {
-                        Terminal::Thresh(thresh.map_ref(|_| stack.pop().unwrap()))
-                    }
-                    Terminal::Multi(ref thresh) => Terminal::Multi(thresh.clone()),
-                    Terminal::MultiA(ref thresh) => Terminal::MultiA(thresh.clone()),
-                };
-
-                stack.push(Arc::new(Miniscript {
-                    node: new_term,
-                    ty: item.node.ty,
-                    ext: item.node.ext,
-                    phantom: PhantomData,
-                }));
-            }
-
-            assert_eq!(stack.len(), 1);
-            Arc::try_unwrap(stack.pop().unwrap_or_else(|| unreachable!())).unwrap_or_else(|_| unreachable!())
-        }
     }
 
     impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
