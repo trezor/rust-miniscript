@@ -122,7 +122,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Terminal<Pk, Ctx> {
                 debug_assert!(Ctx::sig_type() == SigType::Ecdsa);
                 builder = builder.push_int(thresh.k() as i64);
                 for pk in thresh.data() {
-                    builder = builder.push_key(&pk.to_public_key());
+                    builder = builder.push_slice(pk.to_public_key().as_bytes());
                 }
                 builder
                     .push_int(thresh.n() as i64)

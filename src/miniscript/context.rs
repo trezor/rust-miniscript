@@ -10,7 +10,7 @@ use crate::miniscript::limits::{
     MAX_STACK_SIZE, MAX_STANDARD_P2WSH_SCRIPT_SIZE, MAX_STANDARD_P2WSH_STACK_ITEMS,
 };
 use crate::miniscript::types;
-use crate::prelude::*;
+use crate::{SerializedXOnlyPublicKey, SerializedPublicKey, prelude::*};
 use crate::{Error, ForEachKey, Miniscript, MiniscriptKey, Terminal};
 
 /// Error for Script Context
@@ -249,7 +249,7 @@ pub enum SigType {
 pub enum Segwitv0 {}
 
 impl ScriptContext for Segwitv0 {
-    type Key = bitcoin::PublicKey;
+    type Key = SerializedPublicKey;
     fn check_terminal_non_malleable<Pk: MiniscriptKey>(
         _frag: &Terminal<Pk, Self>,
     ) -> Result<(), ScriptContextError> {
@@ -360,7 +360,7 @@ impl ScriptContext for Segwitv0 {
 pub enum Tap {}
 
 impl ScriptContext for Tap {
-    type Key = bitcoin::secp256k1::XOnlyPublicKey;
+    type Key = SerializedXOnlyPublicKey;
     fn check_terminal_non_malleable<Pk: MiniscriptKey>(
         _frag: &Terminal<Pk, Self>,
     ) -> Result<(), ScriptContextError> {

@@ -97,48 +97,55 @@ pub trait MiniscriptKey: Clone + Eq {
     fn num_der_paths(&self) -> usize { 0 }
 }
 
-impl MiniscriptKey for bitcoin::secp256k1::PublicKey {
+impl MiniscriptKey for SerializedPublicKey {
 }
 
-impl MiniscriptKey for bitcoin::PublicKey {
-    /// Returns the compressed-ness of the underlying secp256k1 key.
-    fn is_uncompressed(&self) -> bool { !self.compressed }
-}
-
-impl MiniscriptKey for bitcoin::secp256k1::XOnlyPublicKey {
+impl MiniscriptKey for SerializedXOnlyPublicKey {
     fn is_x_only_key(&self) -> bool { true }
 }
 
 impl MiniscriptKey for String {
 }
 
+/// Compressed public key
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub struct SerializedPublicKey([u8; 33]);
+
+impl SerializedPublicKey {
+    /// Create a new serialized public key.
+    pub fn new(data: [u8; 33]) -> Self { Self(data) }
+    
+    /// Returns the serialized public key
+    pub fn as_bytes(&self) -> [u8; 33] { self.0 }
+}
+
+/// X-only public key
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub struct SerializedXOnlyPublicKey([u8; 32]);
+
+impl SerializedXOnlyPublicKey {
+    /// Returns the serialized x-only key
+    pub fn as_bytes(&self) -> [u8; 32] { self.0 }
+}
 /// Trait describing public key types which can be converted to bitcoin pubkeys
 pub trait ToPublicKey: MiniscriptKey {
     /// Converts an object to a public key
-    fn to_public_key(&self) -> bitcoin::PublicKey;
+    fn to_public_key(&self) -> SerializedPublicKey;
 
     /// Convert an object to x-only pubkey
-    fn to_x_only_pubkey(&self) -> bitcoin::secp256k1::XOnlyPublicKey {
+    fn to_x_only_pubkey(&self) -> SerializedXOnlyPublicKey {
         let pk = self.to_public_key();
-        bitcoin::secp256k1::XOnlyPublicKey::from(pk.inner)
+        SerializedXOnlyPublicKey(pk.0[1..].try_into().unwrap())
     }
 }
 
-impl ToPublicKey for bitcoin::PublicKey {
-    fn to_public_key(&self) -> bitcoin::PublicKey { *self }
+impl ToPublicKey for SerializedPublicKey {
+    fn to_public_key(&self) -> SerializedPublicKey { *self }
 }
 
-impl ToPublicKey for bitcoin::secp256k1::XOnlyPublicKey {
-    fn to_public_key(&self) -> bitcoin::PublicKey {
-        // This code should never be used.
-        // But is implemented for completeness
-        let mut data: Vec<u8> = vec![0x02];
-        data.extend(self.serialize().iter());
-        bitcoin::PublicKey::from_slice(&data)
-            .expect("Failed to construct 33 Publickey from 0x02 appended x-only key")
-    }
-
-    fn to_x_only_pubkey(&self) -> bitcoin::secp256k1::XOnlyPublicKey { *self }
+impl ToPublicKey for SerializedXOnlyPublicKey {
+    fn to_public_key(&self) -> SerializedPublicKey { unreachable!() }
+    fn to_x_only_pubkey(&self) -> SerializedXOnlyPublicKey { *self }
 }
 
 /// Describes an object that can translate various keys and hashes from one key to the type

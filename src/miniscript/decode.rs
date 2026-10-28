@@ -14,18 +14,8 @@ use crate::miniscript::limits::{MAX_PUBKEYS_IN_CHECKSIGADD, MAX_PUBKEYS_PER_MULT
 use crate::miniscript::ScriptContext;
 use crate::prelude::*;
 use crate::{
-    AbsLockTime, Miniscript, MiniscriptKey, RelLockTime, Threshold, ToPublicKey,
+    AbsLockTime, Miniscript, MiniscriptKey, RelLockTime, Threshold,
 };
-
-/// Private Mod to prevent downstream from implementing this public trait
-mod private {
-
-    pub trait Sealed {}
-
-    // Implement for those same types, but no others.
-    impl Sealed for bitcoin::PublicKey {}
-    impl Sealed for bitcoin::secp256k1::XOnlyPublicKey {}
-}
 
 /// All AST elements.
 ///
