@@ -15,14 +15,9 @@
 
 mod segwitv0;
 mod sortedmulti;
-mod tr;
 
 // Descriptor Exports
 pub use self::segwitv0::{Wsh, WshInner};
 pub use self::sortedmulti::SortedMultiVec;
-pub use self::tr::{
-    TapTree, TapTreeDepthError, TapTreeIter, TapTreeIterItem, Tr, TrSpendInfo, TrSpendInfoIter,
-    TrSpendInfoIterItem,
-};
 
 pub mod checksum;

@@ -244,8 +244,6 @@ pub enum Error {
     Secp(bitcoin::secp256k1::Error),
     /// Forward script context related errors
     ContextError(miniscript::context::ScriptContextError),
-    /// Tried to construct a Taproot tree which was too deep.
-    TapTreeDepthError(crate::descriptor::TapTreeDepthError),
     /// Recursion depth exceeded when parsing policy/miniscript from string
     MaxRecursiveDepthExceeded,
     /// Anything but c:pk(key) (P2PK), c:pk_h(key) (P2PKH), and thresh_m(k,...)
@@ -287,11 +285,6 @@ const MAX_RECURSION_DEPTH: u32 = 402;
 #[doc(hidden)]
 impl From<miniscript::types::Error> for Error {
     fn from(_e: miniscript::types::Error) -> Error { Error::TypeCheck }
-}
-
-#[doc(hidden)]
-impl From<crate::descriptor::TapTreeDepthError> for Error {
-    fn from(e: crate::descriptor::TapTreeDepthError) -> Error { Error::TapTreeDepthError(e) }
 }
 
 #[doc(hidden)]
