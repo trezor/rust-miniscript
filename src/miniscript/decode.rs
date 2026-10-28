@@ -17,24 +17,6 @@ use crate::{
     AbsLockTime, Miniscript, MiniscriptKey, RelLockTime, Threshold, ToPublicKey,
 };
 
-/// Trait for parsing keys from byte slices
-pub trait ParseableKey: Sized + ToPublicKey + private::Sealed {
-    /// Parse a key from slice
-    fn from_slice(sl: &[u8]) -> Result<Self, KeyError>;
-}
-
-impl ParseableKey for bitcoin::PublicKey {
-    fn from_slice(sl: &[u8]) -> Result<Self, KeyError> {
-        bitcoin::PublicKey::from_slice(sl).map_err(KeyError::Full)
-    }
-}
-
-impl ParseableKey for bitcoin::secp256k1::XOnlyPublicKey {
-    fn from_slice(sl: &[u8]) -> Result<Self, KeyError> {
-        bitcoin::secp256k1::XOnlyPublicKey::from_slice(sl).map_err(KeyError::XOnly)
-    }
-}
-
 /// Private Mod to prevent downstream from implementing this public trait
 mod private {
 

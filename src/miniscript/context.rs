@@ -5,7 +5,6 @@ use core::hash;
 
 use bitcoin::Weight;
 
-use super::decode::ParseableKey;
 use crate::miniscript::limits::{
     MAX_OPS_PER_SCRIPT, MAX_SCRIPT_SIZE,
     MAX_STACK_SIZE, MAX_STANDARD_P2WSH_SCRIPT_SIZE, MAX_STANDARD_P2WSH_STACK_ITEMS,
@@ -70,7 +69,7 @@ pub trait ScriptContext:
     Clone + Ord + PartialOrd + Eq + PartialEq + hash::Hash + private::Sealed
 {
     /// The consensus key associated with the type. Must be a parseable key
-    type Key: ParseableKey;
+    type Key;
     /// Depending on ScriptContext, fragments can be malleable. For Example,
     /// under Legacy context, PkH is malleable because it is possible to
     /// estimate the cost of satisfaction because of compressed keys
