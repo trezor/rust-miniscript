@@ -101,12 +101,3 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> PartialEq for Terminal<Pk, Ctx> {
     }
 }
 impl<Pk: MiniscriptKey, Ctx: ScriptContext> Eq for Terminal<Pk, Ctx> {}
-
-/// Decoding error while parsing keys
-#[derive(Clone, PartialEq, Eq)]
-pub enum KeyError {
-    /// Bitcoin PublicKey parse error
-    Full(bitcoin::key::FromSliceError),
-    /// Xonly key parse Error
-    XOnly(bitcoin::secp256k1::Error),
-}

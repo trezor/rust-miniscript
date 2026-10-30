@@ -68,8 +68,6 @@ mod primitives;
 
 mod util;
 
-use core::str;
-
 pub use crate::blanket_traits::FromStrKey;
 pub use crate::error::ParseError;
 pub use crate::expression::{ParseNumError, ParseThresholdError, ParseTreeError};
@@ -241,14 +239,10 @@ pub enum Error {
     NonTopLevel,
     /// Parsed a miniscript but there were more script opcodes after it
     Trailing,
-    /// Could not satisfy a script (fragment) because of a missing signature
-    MissingSig(bitcoin::PublicKey),
     /// General failure to satisfy
     CouldNotSatisfy,
     /// Typechecking failed
     TypeCheck,
-    /// Forward-secp related errors
-    Secp(bitcoin::secp256k1::Error),
     /// Forward script context related errors
     ContextError(miniscript::context::ScriptContextError),
     /// Recursion depth exceeded when parsing policy/miniscript from string
@@ -262,8 +256,6 @@ pub enum Error {
     ImpossibleSatisfaction,
     /// Bare descriptors don't have any addresses
     BareDescriptorAddr,
-    /// PubKey invalid under current context
-    PubKeyCtxError(miniscript::decode::KeyError, &'static str),
     /// No script code for Tr descriptors
     TrNoScriptCode,
     /// At least two BIP389 key expressions in the descriptor contain tuples of
@@ -304,11 +296,6 @@ impl From<miniscript::analyzable::AnalysisError> for Error {
     fn from(e: miniscript::analyzable::AnalysisError) -> Error { Error::AnalysisError(e) }
 }
 
-#[doc(hidden)]
-impl From<bitcoin::secp256k1::Error> for Error {
-    fn from(e: bitcoin::secp256k1::Error) -> Error { Error::Secp(e) }
-}
-
 /// The size of an encoding of a number in Script
 pub fn script_num_size(n: usize) -> usize {
     match n {
@@ -330,46 +317,4 @@ mod prelude {
         sync,
         vec::Vec,
     };
-
-    // Mutex implementation from LDK
-    // https://github.com/lightningdevkit/rust-lightning/blob/9bdce47f0e0516e37c89c09f1975dfc06b5870b1/lightning-invoice/src/sync.rs
-    mod mutex {
-        use core::cell::{RefCell, RefMut};
-        use core::ops::{Deref, DerefMut};
-
-        pub type LockResult<Guard> = Result<Guard, ()>;
-
-        /// `Mutex` is not a real mutex as it cannot be used in a multi-threaded
-        /// context. `Mutex` is a dummy implementation of [`std::sync::Mutex`]
-        /// for `no_std` environments.
-        pub struct Mutex<T: ?Sized> {
-            inner: RefCell<T>,
-        }
-
-        #[must_use = "if unused the Mutex will immediately unlock"]
-        pub struct MutexGuard<'a, T: ?Sized + 'a> {
-            lock: RefMut<'a, T>,
-        }
-
-        impl<T: ?Sized> Deref for MutexGuard<'_, T> {
-            type Target = T;
-
-            fn deref(&self) -> &T { self.lock.deref() }
-        }
-
-        impl<T: ?Sized> DerefMut for MutexGuard<'_, T> {
-            fn deref_mut(&mut self) -> &mut T { self.lock.deref_mut() }
-        }
-
-        impl<T> Mutex<T> {
-            pub fn new(inner: T) -> Mutex<T> { Mutex { inner: RefCell::new(inner) } }
-
-            pub fn lock(&self) -> LockResult<MutexGuard<'_, T>> {
-                Ok(MutexGuard { lock: self.inner.borrow_mut() })
-            }
-        }
-    }
-
-    pub use mutex::Mutex;
-
 }
