@@ -12,4 +12,4 @@ edition = "2021"
 rust-version = "1.63.0"
 
 [dependencies]
-bitcoin = { version = "0.32.6", default-features = false }
+bitcoin = { git = "https://github.com/trezor/rust-bitcoin", rev = "f06b8bdf96f5b36b1daae9e592ac6f5caa5fb0bd", default-features = false }
