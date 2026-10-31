@@ -1,22 +1,33 @@
 // SPDX-License-Identifier: CC0-1.0
 
+// Some helpers are only used for satisfaction, which requires `secp256k1`.
+
+#[cfg(feature = "secp256k1")]
 use core::convert::TryFrom;
 
+#[cfg(feature = "secp256k1")]
 use bitcoin::constants::MAX_SCRIPT_ELEMENT_SIZE;
 use bitcoin::hashes::Hash;
-use bitcoin::script::{self, PushBytes, ScriptBuf};
-use bitcoin::PubkeyHash;
+#[cfg(feature = "secp256k1")]
+use bitcoin::script::{PushBytes, ScriptBuf};
+use bitcoin::{script, PubkeyHash};
 
 use crate::miniscript::context;
+#[cfg(feature = "secp256k1")]
 use crate::miniscript::satisfy::Placeholder;
+#[cfg(feature = "secp256k1")]
 use crate::prelude::*;
-use crate::{MiniscriptKey, ScriptContext, ToPublicKey};
+#[cfg(feature = "secp256k1")]
+use crate::{MiniscriptKey};
+use crate::{pubkey, ScriptContext, ToPublicKey};
 pub(crate) fn varint_len(n: usize) -> usize { bitcoin::VarInt(n as u64).size() }
 
+#[cfg(feature = "secp256k1")]
 pub(crate) trait ItemSize {
     fn size(&self) -> usize;
 }
 
+#[cfg(feature = "secp256k1")]
 impl<Pk: MiniscriptKey> ItemSize for Placeholder<Pk> {
     fn size(&self) -> usize {
         match self {
@@ -42,15 +53,18 @@ impl<Pk: MiniscriptKey> ItemSize for Placeholder<Pk> {
     }
 }
 
+#[cfg(feature = "secp256k1")]
 impl ItemSize for Vec<u8> {
     fn size(&self) -> usize { self.len() }
 }
 
 // Helper function to calculate witness size
+#[cfg(feature = "secp256k1")]
 pub(crate) fn witness_size<T: ItemSize>(wit: &[T]) -> usize {
     wit.iter().map(T::size).sum::<usize>() + varint_len(wit.len())
 }
 
+#[cfg(feature = "secp256k1")]
 pub(crate) fn witness_to_scriptsig(witness: &[Vec<u8>]) -> ScriptBuf {
     let mut b = script::Builder::new();
     for (i, wit) in witness.iter().enumerate() {
@@ -91,7 +105,7 @@ impl MsKeyBuilder for script::Builder {
         Ctx: ScriptContext,
     {
         match Ctx::sig_type() {
-            context::SigType::Ecdsa => self.push_key(&key.to_public_key()),
+            context::SigType::Ecdsa => pubkey::push_key(self, &key.to_public_key()),
             context::SigType::Schnorr => self.push_slice(key.to_x_only_pubkey().serialize()),
         }
     }

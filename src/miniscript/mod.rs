@@ -32,6 +32,7 @@ mod display;
 pub mod iter;
 pub mod lex;
 pub mod limits;
+#[cfg(feature = "secp256k1")]
 pub mod satisfy;
 pub mod types;
 
@@ -43,10 +44,10 @@ use self::lex::{lex, TokenIter};
 use crate::expression::{FromTree, TreeIterItem};
 pub use crate::miniscript::context::ScriptContext;
 use crate::miniscript::decode::Terminal;
-use crate::{
-    expression, plan, Error, ForEachKey, FromStrKey, MiniscriptKey, ToPublicKey, Translator,
-};
-#[cfg(test)]
+#[cfg(feature = "secp256k1")]
+use crate::plan;
+use crate::{expression, Error, ForEachKey, FromStrKey, MiniscriptKey, ToPublicKey, Translator};
+#[cfg(all(test, feature = "secp256k1"))]
 mod ms_tests;
 
 mod private {
@@ -434,6 +435,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
 
     /// Attempt to produce non-malleable satisfying witness for the
     /// witness script represented by the parse tree
+    #[cfg(feature = "secp256k1")]
     pub fn satisfy<S: satisfy::Satisfier<Pk>>(&self, satisfier: S) -> Result<Vec<Vec<u8>>, Error>
     where
         Pk: ToPublicKey,
@@ -450,6 +452,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
 
     /// Attempt to produce a malleable satisfying witness for the
     /// witness script represented by the parse tree
+    #[cfg(feature = "secp256k1")]
     pub fn satisfy_malleable<S: satisfy::Satisfier<Pk>>(
         &self,
         satisfier: S,
@@ -466,6 +469,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
         self._satisfy(satisfaction)
     }
 
+    #[cfg(feature = "secp256k1")]
     fn _satisfy(&self, satisfaction: satisfy::Satisfaction<Vec<u8>>) -> Result<Vec<Vec<u8>>, Error>
     where
         Pk: ToPublicKey,
@@ -479,6 +483,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
     }
 
     /// Attempt to produce a non-malleable witness template given the assets available
+    #[cfg(feature = "secp256k1")]
     pub fn build_template<P: plan::AssetProvider<Pk>>(
         &self,
         provider: &P,
@@ -495,6 +500,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
     }
 
     /// Attempt to produce a malleable witness template given the assets available
+    #[cfg(feature = "secp256k1")]
     pub fn build_template_mall<P: plan::AssetProvider<Pk>>(
         &self,
         provider: &P,
@@ -560,6 +566,7 @@ impl<Ctx: ScriptContext> Miniscript<Ctx::Key, Ctx> {
     /// ## Decode/Parse a miniscript from script hex
     ///
     /// ```rust
+    /// # #[cfg(feature = "secp256k1")] {
     /// use miniscript::{Miniscript, Segwitv0, Tap};
     /// use miniscript::bitcoin::secp256k1::XOnlyPublicKey;
     ///
@@ -582,6 +589,7 @@ impl<Ctx: ScriptContext> Miniscript<Ctx::Key, Ctx> {
     /// ).expect("Even length hex"))
     ///     .expect("Compressed keys are allowed in Segwit context");
     ///
+    /// # }
     /// ```
     pub fn decode(script: &script::Script) -> Result<Miniscript<Ctx::Key, Ctx>, Error> {
         let ms = Self::decode_with_ext(script, &ExtParams::sane())?;
@@ -1049,7 +1057,7 @@ pub mod hash256 {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "secp256k1"))]
 mod tests {
 
     use core::str;

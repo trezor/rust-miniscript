@@ -21,7 +21,8 @@ use crate::primitives::threshold;
 #[cfg(doc)]
 use crate::Descriptor;
 use crate::{
-    hash256, AbsLockTime, Error, Miniscript, MiniscriptKey, RelLockTime, Threshold, ToPublicKey,
+    hash256, pubkey, AbsLockTime, Error, Miniscript, MiniscriptKey, RelLockTime, Threshold,
+    ToPublicKey,
 };
 
 /// Trait for parsing keys from byte slices
@@ -30,15 +31,15 @@ pub trait ParseableKey: Sized + ToPublicKey + private::Sealed {
     fn from_slice(sl: &[u8]) -> Result<Self, KeyError>;
 }
 
-impl ParseableKey for bitcoin::PublicKey {
+impl ParseableKey for pubkey::PublicKey {
     fn from_slice(sl: &[u8]) -> Result<Self, KeyError> {
-        bitcoin::PublicKey::from_slice(sl).map_err(KeyError::Full)
+        pubkey::PublicKey::from_slice(sl).map_err(KeyError::Full)
     }
 }
 
-impl ParseableKey for bitcoin::secp256k1::XOnlyPublicKey {
+impl ParseableKey for pubkey::XOnlyPublicKey {
     fn from_slice(sl: &[u8]) -> Result<Self, KeyError> {
-        bitcoin::secp256k1::XOnlyPublicKey::from_slice(sl).map_err(KeyError::XOnly)
+        pubkey::XOnlyPublicKey::from_slice(sl).map_err(KeyError::XOnly)
     }
 }
 
@@ -48,8 +49,8 @@ mod private {
     pub trait Sealed {}
 
     // Implement for those same types, but no others.
-    impl Sealed for bitcoin::PublicKey {}
-    impl Sealed for bitcoin::secp256k1::XOnlyPublicKey {}
+    impl Sealed for crate::pubkey::PublicKey {}
+    impl Sealed for crate::pubkey::XOnlyPublicKey {}
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -703,9 +704,9 @@ fn is_and_v(tokens: &mut TokenIter) -> bool {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KeyError {
     /// Bitcoin PublicKey parse error
-    Full(bitcoin::key::FromSliceError),
+    Full(pubkey::FromSliceError),
     /// Xonly key parse Error
-    XOnly(bitcoin::secp256k1::Error),
+    XOnly(pubkey::XOnlyFromSliceError),
 }
 
 impl fmt::Display for KeyError {

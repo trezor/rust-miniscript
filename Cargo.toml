@@ -12,14 +12,15 @@ edition = "2021"
 rust-version = "1.63.0"
 
 [features]
-default = ["std"]
-std = ["bitcoin/std", "bitcoin/secp-recovery", "bech32/std"]
-compiler = []
+default = ["std", "secp256k1"]
+std = ["bitcoin/std", "bech32/std"]
+secp256k1 = ["bitcoin/secp256k1", "bitcoin/secp-recovery"]
+compiler = ["secp256k1"]
 trace = []
 
 serde = ["dep:serde", "bitcoin/serde"]
-rand = ["bitcoin/rand"]
-base64 = ["bitcoin/base64"]
+rand = ["secp256k1", "bitcoin/rand"]
+base64 = ["secp256k1", "bitcoin/base64"]
 
 [dependencies]
 bech32 = { version = "0.11.0", default-features = false, features = ["alloc"] }
@@ -33,25 +34,29 @@ serde_test = "1.0.147"
 bitcoin = { git = "https://github.com/trezor/rust-bitcoin", rev = "5f8a7355e9aa2ddb4abfea7ce6ce8e23c0234b40", features = ["base64"] }
 secp256k1 = {version = "0.29.0", features = ["rand-std"]}
 
+[[test]]
+name = "bip-174"  # `tests/bip-174.rs` needs secp256k1
+required-features = ["secp256k1"]
+
 [[example]]
 name = "htlc"
 required-features = ["std", "compiler"]
 
 [[example]]
 name = "parse"
-required-features = ["std"]
+required-features = ["std", "secp256k1"]
 
 [[example]]
 name = "sign_multisig"
-required-features = ["std"]
+required-features = ["std", "secp256k1"]
 
 [[example]]
 name = "verify_tx"
-required-features = ["std"]
+required-features = ["std", "secp256k1"]
 
 [[example]]
 name = "xpub_descriptors"
-required-features = ["std"]
+required-features = ["std", "secp256k1"]
 
 [[example]]
 name = "taproot"

@@ -7,25 +7,38 @@
 //! sh(miniscript), and sh(wpkh)
 //!
 
+#[cfg(feature = "secp256k1")]
 use core::convert::TryFrom;
 use core::fmt;
 
+#[cfg(feature = "secp256k1")]
 use bitcoin::script::PushBytes;
-use bitcoin::{script, Address, Network, ScriptBuf, Weight};
+#[cfg(feature = "secp256k1")]
+use bitcoin::{script, Address, Network, ScriptBuf};
+use bitcoin::Weight;
 
 use super::{SortedMultiVec, Wpkh, Wsh};
-use crate::descriptor::{write_descriptor, DefiniteDescriptorKey};
+use crate::descriptor::write_descriptor;
+#[cfg(feature = "secp256k1")]
+use crate::descriptor::DefiniteDescriptorKey;
 use crate::expression::{self, FromTree};
 use crate::miniscript::context::ScriptContext;
 use crate::miniscript::limits::MAX_PUBKEYS_PER_MULTISIG;
+#[cfg(feature = "secp256k1")]
 use crate::miniscript::satisfy::{Placeholder, Satisfaction};
+#[cfg(feature = "secp256k1")]
 use crate::plan::AssetProvider;
 use crate::policy::{semantic, Liftable};
+#[cfg(feature = "secp256k1")]
 use crate::prelude::*;
-use crate::util::{varint_len, witness_to_scriptsig};
+use crate::util::varint_len;
+#[cfg(feature = "secp256k1")]
+use crate::util::witness_to_scriptsig;
+#[cfg(feature = "secp256k1")]
+use crate::{Satisfier, ToPublicKey};
 use crate::{
-    push_opcode_size, Error, ForEachKey, FromStrKey, Legacy, Miniscript, MiniscriptKey, Satisfier,
-    Segwitv0, Threshold, ToPublicKey, TranslateErr, Translator,
+    push_opcode_size, Error, ForEachKey, FromStrKey, Legacy, Miniscript, MiniscriptKey, Segwitv0,
+    Threshold, TranslateErr, Translator,
 };
 
 /// A Legacy p2sh Descriptor
@@ -272,6 +285,7 @@ impl<Pk: MiniscriptKey> Sh<Pk> {
     }
 }
 
+#[cfg(feature = "secp256k1")]
 impl<Pk: MiniscriptKey + ToPublicKey> Sh<Pk> {
     /// Obtains the corresponding script pubkey for this descriptor.
     pub fn script_pubkey(&self) -> ScriptBuf {
@@ -412,6 +426,7 @@ impl<Pk: MiniscriptKey + ToPublicKey> Sh<Pk> {
     }
 }
 
+#[cfg(feature = "secp256k1")]
 impl Sh<DefiniteDescriptorKey> {
     /// Returns a plan if the provided assets are sufficient to produce a non-malleable satisfaction
     pub fn plan_satisfaction<P>(
