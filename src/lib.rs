@@ -123,6 +123,7 @@ pub mod plan;
 pub mod policy;
 mod primitives;
 pub mod psbt;
+pub mod pubkey;
 
 #[cfg(test)]
 mod test_utils;
@@ -214,12 +215,12 @@ impl MiniscriptKey for String {
 /// Trait describing public key types which can be converted to bitcoin pubkeys
 pub trait ToPublicKey: MiniscriptKey {
     /// Converts an object to a public key
-    fn to_public_key(&self) -> bitcoin::PublicKey;
+    fn to_public_key(&self) -> pubkey::PublicKey;
 
     /// Convert an object to x-only pubkey
-    fn to_x_only_pubkey(&self) -> bitcoin::secp256k1::XOnlyPublicKey {
+    fn to_x_only_pubkey(&self) -> pubkey::XOnlyPublicKey {
         let pk = self.to_public_key();
-        bitcoin::secp256k1::XOnlyPublicKey::from(pk.inner)
+        pubkey::to_x_only(pk)
     }
 
     /// Obtain the public key hash for this MiniscriptKey
@@ -451,7 +452,7 @@ pub enum Error {
     /// Parsed a miniscript but there were more script opcodes after it
     Trailing,
     /// Could not satisfy a script (fragment) because of a missing signature
-    MissingSig(bitcoin::PublicKey),
+    MissingSig(pubkey::PublicKey),
     /// General failure to satisfy
     CouldNotSatisfy,
     /// Typechecking failed

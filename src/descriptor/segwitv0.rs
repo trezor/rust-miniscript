@@ -21,8 +21,8 @@ use crate::policy::{semantic, Liftable};
 use crate::prelude::*;
 use crate::util::varint_len;
 use crate::{
-    Error, ForEachKey, FromStrKey, Miniscript, MiniscriptKey, Satisfier, Segwitv0, Threshold,
-    ToPublicKey, TranslateErr, Translator,
+    pubkey, Error, ForEachKey, FromStrKey, Miniscript, MiniscriptKey, Satisfier, Segwitv0,
+    Threshold, ToPublicKey, TranslateErr, Translator,
 };
 /// A Segwitv0 wsh descriptor
 #[derive(Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
@@ -376,20 +376,20 @@ impl<Pk: MiniscriptKey + ToPublicKey> Wpkh<Pk> {
     /// Obtains the corresponding script pubkey for this descriptor.
     pub fn script_pubkey(&self) -> ScriptBuf {
         let pk = self.pk.to_public_key();
-        let compressed = bitcoin::key::CompressedPublicKey::try_from(pk)
+        let compressed = pubkey::CompressedPublicKey::try_from(pk)
             .expect("wpkh descriptors have compressed keys");
 
-        let addr = Address::p2wpkh(&compressed, Network::Bitcoin);
+        let addr = pubkey::p2wpkh(&compressed, Network::Bitcoin);
         addr.script_pubkey()
     }
 
     /// Obtains the corresponding script pubkey for this descriptor.
     pub fn address(&self, network: Network) -> Address {
         let pk = self.pk.to_public_key();
-        let compressed = bitcoin::key::CompressedPublicKey::try_from(pk)
+        let compressed = pubkey::CompressedPublicKey::try_from(pk)
             .expect("Rust Miniscript types don't allow uncompressed pks in segwit descriptors");
 
-        Address::p2wpkh(&compressed, network)
+        pubkey::p2wpkh(&compressed, network)
     }
 
     /// Obtains the underlying miniscript for this descriptor.

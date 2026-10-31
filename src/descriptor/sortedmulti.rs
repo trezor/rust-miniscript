@@ -19,8 +19,8 @@ use crate::plan::AssetProvider;
 use crate::prelude::*;
 use crate::sync::Arc;
 use crate::{
-    expression, policy, script_num_size, Error, ForEachKey, Miniscript, MiniscriptKey, Satisfier,
-    Threshold, ToPublicKey, TranslateErr, Translator,
+    expression, policy, pubkey, script_num_size, Error, ForEachKey, Miniscript, MiniscriptKey,
+    Satisfier, Threshold, ToPublicKey, TranslateErr, Translator,
 };
 
 /// Contents of a "sortedmulti" descriptor
@@ -126,10 +126,8 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> SortedMultiVec<Pk, Ctx> {
         let mut thresh = self.inner.clone();
         // Sort pubkeys lexicographically according to BIP 67
         thresh.data_mut().sort_by(|a, b| {
-            a.to_public_key()
-                .inner
-                .serialize()
-                .partial_cmp(&b.to_public_key().inner.serialize())
+            pubkey::sort_key(&a.to_public_key())
+                .partial_cmp(&pubkey::sort_key(&b.to_public_key()))
                 .unwrap()
         });
         Terminal::Multi(thresh)

@@ -13,7 +13,7 @@ use bitcoin::{absolute, opcodes, script};
 use crate::miniscript::context::SigType;
 use crate::miniscript::ScriptContext;
 use crate::util::MsKeyBuilder;
-use crate::{Miniscript, MiniscriptKey, Terminal, ToPublicKey};
+use crate::{pubkey, Miniscript, MiniscriptKey, Terminal, ToPublicKey};
 
 /// Helper trait to add a `push_astelem` method to `script::Builder`
 trait PushAstElem<Pk: MiniscriptKey, Ctx: ScriptContext> {
@@ -156,7 +156,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Terminal<Pk, Ctx> {
                 debug_assert!(Ctx::sig_type() == SigType::Ecdsa);
                 builder = builder.push_int(thresh.k() as i64);
                 for pk in thresh.data() {
-                    builder = builder.push_key(&pk.to_public_key());
+                    builder = pubkey::push_key(builder, &pk.to_public_key());
                 }
                 builder
                     .push_int(thresh.n() as i64)

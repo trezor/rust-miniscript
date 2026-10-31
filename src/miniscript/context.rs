@@ -357,7 +357,7 @@ pub enum SigType {
 pub enum Legacy {}
 
 impl ScriptContext for Legacy {
-    type Key = bitcoin::PublicKey;
+    type Key = crate::pubkey::PublicKey;
     fn check_terminal_non_malleable<Pk: MiniscriptKey>(
         frag: &Terminal<Pk, Self>,
     ) -> Result<(), ScriptContextError> {
@@ -463,7 +463,7 @@ impl ScriptContext for Legacy {
 pub enum Segwitv0 {}
 
 impl ScriptContext for Segwitv0 {
-    type Key = bitcoin::PublicKey;
+    type Key = crate::pubkey::PublicKey;
     fn check_terminal_non_malleable<Pk: MiniscriptKey>(
         _frag: &Terminal<Pk, Self>,
     ) -> Result<(), ScriptContextError> {
@@ -574,7 +574,7 @@ impl ScriptContext for Segwitv0 {
 pub enum Tap {}
 
 impl ScriptContext for Tap {
-    type Key = bitcoin::secp256k1::XOnlyPublicKey;
+    type Key = crate::pubkey::XOnlyPublicKey;
     fn check_terminal_non_malleable<Pk: MiniscriptKey>(
         _frag: &Terminal<Pk, Self>,
     ) -> Result<(), ScriptContextError> {
@@ -683,7 +683,7 @@ impl ScriptContext for Tap {
 pub enum BareCtx {}
 
 impl ScriptContext for BareCtx {
-    type Key = bitcoin::PublicKey;
+    type Key = crate::pubkey::PublicKey;
     fn check_terminal_non_malleable<Pk: MiniscriptKey>(
         _frag: &Terminal<Pk, Self>,
     ) -> Result<(), ScriptContextError> {
@@ -789,7 +789,7 @@ impl ScriptContext for BareCtx {
 pub enum NoChecks {}
 impl ScriptContext for NoChecks {
     // todo: When adding support for interpreter, we need a enum with all supported keys here
-    type Key = bitcoin::PublicKey;
+    type Key = crate::pubkey::PublicKey;
     fn check_terminal_non_malleable<Pk: MiniscriptKey>(
         _frag: &Terminal<Pk, Self>,
     ) -> Result<(), ScriptContextError> {

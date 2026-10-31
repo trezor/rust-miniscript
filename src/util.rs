@@ -10,7 +10,7 @@ use bitcoin::PubkeyHash;
 use crate::miniscript::context;
 use crate::miniscript::satisfy::Placeholder;
 use crate::prelude::*;
-use crate::{MiniscriptKey, ScriptContext, ToPublicKey};
+use crate::{pubkey, MiniscriptKey, ScriptContext, ToPublicKey};
 pub(crate) fn varint_len(n: usize) -> usize { bitcoin::VarInt(n as u64).size() }
 
 pub(crate) trait ItemSize {
@@ -91,7 +91,7 @@ impl MsKeyBuilder for script::Builder {
         Ctx: ScriptContext,
     {
         match Ctx::sig_type() {
-            context::SigType::Ecdsa => self.push_key(&key.to_public_key()),
+            context::SigType::Ecdsa => pubkey::push_key(self, &key.to_public_key()),
             context::SigType::Schnorr => self.push_slice(key.to_x_only_pubkey().serialize()),
         }
     }
