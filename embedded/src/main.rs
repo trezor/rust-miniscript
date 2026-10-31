@@ -34,7 +34,7 @@ fn main() -> ! {
     )))";
     hprintln!("descriptor {}", descriptor).unwrap();
     let desc =
-        miniscript::Descriptor::<miniscript::bitcoin::PublicKey>::from_str(descriptor).unwrap();
+        miniscript::Descriptor::<miniscript::SerializedPublicKey>::from_str(descriptor).unwrap();
 
     // Derive the P2SH address
     let p2sh_addr = desc

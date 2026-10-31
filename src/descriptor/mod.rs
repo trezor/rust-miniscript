@@ -12,31 +12,39 @@
 //!
 
 use core::fmt;
+#[cfg(feature = "secp256k1")]
 use core::ops::Range;
 use core::str::{self, FromStr};
 
+#[cfg(feature = "secp256k1")]
 use bitcoin::hashes::{hash160, ripemd160, sha256};
-use bitcoin::{
-    secp256k1, Address, Network, Script, ScriptBuf, TxIn, Weight, Witness, WitnessVersion,
-};
+#[cfg(feature = "secp256k1")]
+use bitcoin::{secp256k1, Script, TxIn, Witness, Address, Network, ScriptBuf};
+use bitcoin::{Weight, WitnessVersion};
 use sync::Arc;
 
 use crate::expression::FromTree as _;
 use crate::miniscript::decode::Terminal;
 use crate::miniscript::limits::MAX_PUBKEYS_PER_MULTISIG;
-use crate::miniscript::{satisfy, Legacy, Miniscript, Segwitv0};
+#[cfg(feature = "secp256k1")]
+use crate::miniscript::satisfy;
+use crate::miniscript::{Legacy, Miniscript, Segwitv0};
+#[cfg(feature = "secp256k1")]
 use crate::plan::{AssetProvider, Plan};
 use crate::prelude::*;
 use crate::{
-    expression, hash256, BareCtx, Error, ForEachKey, FromStrKey, MiniscriptKey, ParseError,
-    Satisfier, Threshold, ToPublicKey, TranslateErr, Translator,
+    expression, BareCtx, Error, ForEachKey, FromStrKey, MiniscriptKey, Threshold, 
+    TranslateErr, Translator,
 };
+#[cfg(feature = "secp256k1")]
+use crate::{hash256, ParseError, Satisfier, ToPublicKey};
 
 mod bare;
 mod iter;
 mod segwitv0;
 mod sh;
 mod sortedmulti;
+#[cfg(feature = "secp256k1")]
 mod tr;
 
 // Descriptor Exports
@@ -45,22 +53,29 @@ pub use self::iter::PkIter;
 pub use self::segwitv0::{Wpkh, Wsh, WshInner};
 pub use self::sh::{Sh, ShInner};
 pub use self::sortedmulti::SortedMultiVec;
+#[cfg(feature = "secp256k1")]
 pub use self::tr::{
     TapTree, TapTreeDepthError, TapTreeIter, TapTreeIterItem, Tr, TrSpendInfo, TrSpendInfoIter,
     TrSpendInfoIterItem,
 };
 
 pub mod checksum;
+#[cfg(feature = "secp256k1")]
 mod key;
+#[cfg(feature = "secp256k1")]
 mod key_map;
+#[cfg(feature = "secp256k1")]
 mod wallet_policy;
 
+#[cfg(feature = "secp256k1")]
 pub use self::key::{
     DefiniteDescriptorKey, DerivPaths, DescriptorKeyParseError, DescriptorMultiXKey,
     DescriptorPublicKey, DescriptorSecretKey, DescriptorXKey, InnerXKey, MalformedKeyDataKind,
     NonDefiniteKeyError, SinglePriv, SinglePub, SinglePubKey, Wildcard, XKeyNetwork,
 };
+#[cfg(feature = "secp256k1")]
 pub use self::key_map::KeyMap;
+#[cfg(feature = "secp256k1")]
 pub use self::wallet_policy::{KeyInfo, WalletPolicy, WalletPolicyError};
 
 /// Script descriptor
@@ -77,6 +92,7 @@ pub enum Descriptor<Pk: MiniscriptKey> {
     /// Pay-to-Witness-ScriptHash with Segwitv0 context
     Wsh(Wsh<Pk>),
     /// Pay-to-Taproot
+    #[cfg(feature = "secp256k1")]
     Tr(Tr<Pk>),
 }
 
@@ -105,6 +121,7 @@ impl<Pk: MiniscriptKey> From<Wsh<Pk>> for Descriptor<Pk> {
     fn from(inner: Wsh<Pk>) -> Self { Descriptor::Wsh(inner) }
 }
 
+#[cfg(feature = "secp256k1")]
 impl<Pk: MiniscriptKey> From<Tr<Pk>> for Descriptor<Pk> {
     #[inline]
     fn from(inner: Tr<Pk>) -> Self { Descriptor::Tr(inner) }
@@ -245,6 +262,7 @@ impl<Pk: MiniscriptKey> Descriptor<Pk> {
 
     /// Create new tr descriptor
     /// Errors when miniscript exceeds resource limits under Tap context
+    #[cfg(feature = "secp256k1")]
     pub fn new_tr(key: Pk, script: Option<tr::TapTree<Pk>>) -> Result<Self, Error> {
         Ok(Descriptor::Tr(Tr::new(key, script)?))
     }
@@ -268,11 +286,13 @@ impl<Pk: MiniscriptKey> Descriptor<Pk> {
                 WshInner::SortedMulti(ref sorted) => PkIter::from_sortedmulti(sorted.pks()),
                 WshInner::Ms(ref ms) => PkIter::from_miniscript_segwit(ms),
             },
+            #[cfg(feature = "secp256k1")]
             Descriptor::Tr(ref tr) => PkIter::from_tr(tr),
         }
     }
 
     /// For a Taproot descriptor, returns the internal key.
+    #[cfg(feature = "secp256k1")]
     pub fn internal_key(&self) -> Option<&Pk> {
         if let Descriptor::Tr(ref tr) = self {
             Some(tr.internal_key())
@@ -285,6 +305,7 @@ impl<Pk: MiniscriptKey> Descriptor<Pk> {
     ///
     /// To obtain the individual leaves of the tree, call [`TapTree::leaves`] on the
     /// returned value.
+    #[cfg(feature = "secp256k1")]
     pub fn tap_tree(&self) -> Option<&TapTree<Pk>> {
         if let Descriptor::Tr(ref tr) = self {
             tr.tap_tree()
@@ -297,6 +318,7 @@ impl<Pk: MiniscriptKey> Descriptor<Pk> {
     ///
     /// If the descriptor is not a Taproot descriptor, **or** if the descriptor is a
     /// Taproot descriptor containing only a keyspend, returns an empty iterator.
+    #[cfg(feature = "secp256k1")]
     pub fn tap_tree_iter(&self) -> tr::TapTreeIter<'_, Pk> {
         if let Descriptor::Tr(ref tr) = self {
             if let Some(tree) = tr.tap_tree() {
@@ -325,6 +347,7 @@ impl<Pk: MiniscriptKey> Descriptor<Pk> {
                 WshInner::SortedMulti(ref _smv) => DescriptorType::WshSortedMulti,
                 WshInner::Ms(ref _ms) => DescriptorType::Wsh,
             },
+            #[cfg(feature = "secp256k1")]
             Descriptor::Tr(ref _tr) => DescriptorType::Tr,
         }
     }
@@ -345,6 +368,7 @@ impl<Pk: MiniscriptKey> Descriptor<Pk> {
             Descriptor::Wpkh(ref wpkh) => wpkh.sanity_check(),
             Descriptor::Wsh(ref wsh) => wsh.sanity_check(),
             Descriptor::Sh(ref sh) => sh.sanity_check(),
+            #[cfg(feature = "secp256k1")]
             Descriptor::Tr(ref tr) => tr.sanity_check(),
         }
     }
@@ -394,6 +418,7 @@ impl<Pk: MiniscriptKey> Descriptor<Pk> {
             Descriptor::Wpkh(ref wpkh) => wpkh.max_weight_to_satisfy(),
             Descriptor::Wsh(ref wsh) => wsh.max_weight_to_satisfy()?,
             Descriptor::Sh(ref sh) => sh.max_weight_to_satisfy()?,
+            #[cfg(feature = "secp256k1")]
             Descriptor::Tr(ref tr) => tr.max_weight_to_satisfy()?,
         };
         Ok(weight)
@@ -420,6 +445,7 @@ impl<Pk: MiniscriptKey> Descriptor<Pk> {
             Descriptor::Wpkh(ref wpkh) => wpkh.max_satisfaction_weight(),
             Descriptor::Wsh(ref wsh) => wsh.max_satisfaction_weight()?,
             Descriptor::Sh(ref sh) => sh.max_satisfaction_weight()?,
+            #[cfg(feature = "secp256k1")]
             Descriptor::Tr(ref tr) => tr.max_satisfaction_weight()?,
         };
         Ok(weight)
@@ -439,12 +465,14 @@ impl<Pk: MiniscriptKey> Descriptor<Pk> {
             Descriptor::Wpkh(ref pk) => Descriptor::Wpkh(pk.translate_pk(t)?),
             Descriptor::Sh(ref sh) => Descriptor::Sh(sh.translate_pk(t)?),
             Descriptor::Wsh(ref wsh) => Descriptor::Wsh(wsh.translate_pk(t)?),
+            #[cfg(feature = "secp256k1")]
             Descriptor::Tr(ref tr) => Descriptor::Tr(tr.translate_pk(t)?),
         };
         Ok(desc)
     }
 }
 
+#[cfg(feature = "secp256k1")]
 impl<Pk: MiniscriptKey + ToPublicKey> Descriptor<Pk> {
     /// Computes the Bitcoin address of the descriptor, if one exists
     ///
@@ -531,6 +559,7 @@ impl<Pk: MiniscriptKey + ToPublicKey> Descriptor<Pk> {
     /// Returns satisfying non-malleable witness and scriptSig to spend an
     /// output controlled by the given descriptor if it possible to
     /// construct one using the satisfier S.
+    #[cfg(feature = "secp256k1")]
     pub fn get_satisfaction<S>(&self, satisfier: S) -> Result<(Vec<Vec<u8>>, ScriptBuf), Error>
     where
         S: Satisfier<Pk>,
@@ -548,6 +577,7 @@ impl<Pk: MiniscriptKey + ToPublicKey> Descriptor<Pk> {
     /// Returns a possilbly mallable satisfying non-malleable witness and scriptSig to spend an
     /// output controlled by the given descriptor if it possible to
     /// construct one using the satisfier S.
+    #[cfg(feature = "secp256k1")]
     pub fn get_satisfaction_mall<S>(&self, satisfier: S) -> Result<(Vec<Vec<u8>>, ScriptBuf), Error>
     where
         S: Satisfier<Pk>,
@@ -565,6 +595,7 @@ impl<Pk: MiniscriptKey + ToPublicKey> Descriptor<Pk> {
     /// Attempts to produce a non-malleable satisfying witness and scriptSig to spend an
     /// output controlled by the given descriptor; add the data to a given
     /// `TxIn` output.
+    #[cfg(feature = "secp256k1")]
     pub fn satisfy<S>(&self, txin: &mut TxIn, satisfier: S) -> Result<(), Error>
     where
         S: Satisfier<Pk>,
@@ -576,6 +607,7 @@ impl<Pk: MiniscriptKey + ToPublicKey> Descriptor<Pk> {
     }
 }
 
+#[cfg(feature = "secp256k1")]
 impl Descriptor<DefiniteDescriptorKey> {
     /// Returns a plan if the provided assets are sufficient to produce a non-malleable satisfaction
     ///
@@ -645,11 +677,13 @@ impl<Pk: MiniscriptKey> ForEachKey<Pk> for Descriptor<Pk> {
             Descriptor::Wpkh(ref wpkh) => wpkh.for_each_key(pred),
             Descriptor::Wsh(ref wsh) => wsh.for_each_key(pred),
             Descriptor::Sh(ref sh) => sh.for_each_key(pred),
+            #[cfg(feature = "secp256k1")]
             Descriptor::Tr(ref tr) => tr.for_each_key(pred),
         }
     }
 }
 
+#[cfg(feature = "secp256k1")]
 impl Descriptor<DescriptorPublicKey> {
     /// Whether or not the descriptor has any wildcards i.e. `/*`.
     pub fn has_wildcard(&self) -> bool { self.for_any_key(|key| key.has_wildcard()) }
@@ -956,6 +990,7 @@ impl Descriptor<DescriptorPublicKey> {
     }
 }
 
+#[cfg(feature = "secp256k1")]
 impl Descriptor<DefiniteDescriptorKey> {
     /// Convert all the public keys in the descriptor to [`bitcoin::PublicKey`] by deriving them or
     /// otherwise converting them. All [`bitcoin::secp256k1::XOnlyPublicKey`]s are converted to by adding a
@@ -1041,6 +1076,7 @@ impl<Pk: FromStrKey> crate::expression::FromTree for Descriptor<Pk> {
             ("wpkh", 1) => Descriptor::Wpkh(Wpkh::from_tree(top)?),
             ("sh", 1) => Descriptor::Sh(Sh::from_tree(top)?),
             ("wsh", 1) => Descriptor::Wsh(Wsh::from_tree(top)?),
+            #[cfg(feature = "secp256k1")]
             ("tr", _) => Descriptor::Tr(Tr::from_tree(top)?),
             _ => Descriptor::Bare(Bare::from_tree(top)?),
         })
@@ -1052,6 +1088,7 @@ impl<Pk: FromStrKey> FromStr for Descriptor<Pk> {
     fn from_str(s: &str) -> Result<Descriptor<Pk>, Error> {
         let top = expression::Tree::from_str(s)?;
         let ret = Self::from_tree(top.root())?;
+        #[cfg(feature = "secp256k1")]
         if let Descriptor::Tr(ref inner) = ret {
             // FIXME preserve weird/broken behavior from 12.x.
             // See https://github.com/rust-bitcoin/rust-miniscript/issues/734
@@ -1073,6 +1110,7 @@ impl<Pk: MiniscriptKey> fmt::Debug for Descriptor<Pk> {
             Descriptor::Wpkh(ref wpkh) => fmt::Debug::fmt(wpkh, f),
             Descriptor::Sh(ref sub) => fmt::Debug::fmt(sub, f),
             Descriptor::Wsh(ref sub) => fmt::Debug::fmt(sub, f),
+            #[cfg(feature = "secp256k1")]
             Descriptor::Tr(ref tr) => fmt::Debug::fmt(tr, f),
         }
     }
@@ -1086,6 +1124,7 @@ impl<Pk: MiniscriptKey> fmt::Display for Descriptor<Pk> {
             Descriptor::Wpkh(ref wpkh) => fmt::Display::fmt(wpkh, f),
             Descriptor::Sh(ref sub) => fmt::Display::fmt(sub, f),
             Descriptor::Wsh(ref sub) => fmt::Display::fmt(sub, f),
+            #[cfg(feature = "secp256k1")]
             Descriptor::Tr(ref tr) => fmt::Display::fmt(tr, f),
         }
     }
@@ -1108,7 +1147,7 @@ macro_rules! write_descriptor {
 }
 pub(crate) use write_descriptor;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "secp256k1"))]
 mod tests {
     use core::convert::TryFrom;
 
