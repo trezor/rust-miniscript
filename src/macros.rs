@@ -6,7 +6,7 @@
 
 /// Allows tests to create a miniscript directly from string as
 /// `ms_str!("c:or_i(pk({}),pk({}))", pk1, pk2)`
-#[cfg(test)]
+#[cfg(all(test, feature = "secp256k1"))]
 macro_rules! ms_str {
     ($($arg:tt)*) => (Miniscript::from_str_ext(&format!($($arg)*), &$crate::ExtParams::allow_all()).unwrap())
 }

@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: CC0-1.0
 
+// Some helpers are only used for satisfaction, which requires `secp256k1`.
+#![cfg_attr(not(feature = "secp256k1"), allow(dead_code, unused_imports))]
+
 use core::convert::TryFrom;
 
 use bitcoin::constants::MAX_SCRIPT_ELEMENT_SIZE;
@@ -8,6 +11,7 @@ use bitcoin::script::{self, PushBytes, ScriptBuf};
 use bitcoin::PubkeyHash;
 
 use crate::miniscript::context;
+#[cfg(feature = "secp256k1")]
 use crate::miniscript::satisfy::Placeholder;
 use crate::prelude::*;
 use crate::{pubkey, MiniscriptKey, ScriptContext, ToPublicKey};
@@ -17,6 +21,7 @@ pub(crate) trait ItemSize {
     fn size(&self) -> usize;
 }
 
+#[cfg(feature = "secp256k1")]
 impl<Pk: MiniscriptKey> ItemSize for Placeholder<Pk> {
     fn size(&self) -> usize {
         match self {

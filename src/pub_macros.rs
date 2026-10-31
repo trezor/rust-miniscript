@@ -10,6 +10,7 @@
 /// This macro is handy when dealing with scripts that are only contain keys.
 /// See also [`crate::translate_hash_clone`]
 /// ```rust
+/// # #[cfg(feature = "secp256k1")] {
 /// use miniscript::{bitcoin::PublicKey, policy::concrete::Policy, Translator, hash256};
 /// use std::str::FromStr;
 /// use miniscript::translate_hash_fail;
@@ -44,6 +45,7 @@
 /// pk_map.insert(String::from("alice_key"), bitcoin::PublicKey::from_str(alice_key).unwrap());
 /// pk_map.insert(String::from("bob_key"), bitcoin::PublicKey::from_str(bob_key).unwrap());
 /// let mut t = StrPkTranslator { pk_map: pk_map };
+/// # }
 /// ```
 #[macro_export]
 macro_rules! translate_hash_fail {

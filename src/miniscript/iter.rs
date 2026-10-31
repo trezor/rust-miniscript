@@ -201,7 +201,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> Iterator for PkIter<'_, Pk, Ctx> {
 
 /// Module is public since it export testcase generation which may be used in
 /// dependent libraries for their own tasts based on Miniscript AST
-#[cfg(test)]
+#[cfg(all(test, feature = "secp256k1"))]
 pub mod test {
     use bitcoin::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
 

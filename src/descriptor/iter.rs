@@ -2,17 +2,22 @@
 
 //! Iterators over descriptors
 
+#[cfg(feature = "secp256k1")]
 use crate::descriptor::{TapTreeIter, Tr};
-use crate::miniscript::context::{BareCtx, Legacy, Segwitv0, Tap};
+#[cfg(feature = "secp256k1")]
+use crate::miniscript::context::Tap;
+use crate::miniscript::context::{BareCtx, Legacy, Segwitv0};
 use crate::{miniscript, Miniscript, MiniscriptKey};
 
 /// Iterator over all the keys in a descriptor.
 pub struct PkIter<'desc, Pk: MiniscriptKey> {
     single_key: Option<Pk>,
+    #[cfg(feature = "secp256k1")]
     taptree_iter: Option<TapTreeIter<'desc, Pk>>,
     ms_iter_bare: Option<miniscript::iter::PkIter<'desc, Pk, BareCtx>>,
     ms_iter_legacy: Option<miniscript::iter::PkIter<'desc, Pk, Legacy>>,
     ms_iter_segwit: Option<miniscript::iter::PkIter<'desc, Pk, Segwitv0>>,
+    #[cfg(feature = "secp256k1")]
     ms_iter_taproot: Option<miniscript::iter::PkIter<'desc, Pk, Tap>>,
     sorted_multi: Option<core::slice::Iter<'desc, Pk>>,
 }
@@ -21,10 +26,12 @@ impl<'desc, Pk: MiniscriptKey> PkIter<'desc, Pk> {
     pub(super) fn from_key(pk: Pk) -> Self {
         Self {
             single_key: Some(pk),
+            #[cfg(feature = "secp256k1")]
             taptree_iter: None,
             ms_iter_bare: None,
             ms_iter_legacy: None,
             ms_iter_segwit: None,
+            #[cfg(feature = "secp256k1")]
             ms_iter_taproot: None,
             sorted_multi: None,
         }
@@ -33,10 +40,12 @@ impl<'desc, Pk: MiniscriptKey> PkIter<'desc, Pk> {
     pub(super) fn from_miniscript_bare(ms: &'desc Miniscript<Pk, BareCtx>) -> Self {
         Self {
             single_key: None,
+            #[cfg(feature = "secp256k1")]
             taptree_iter: None,
             ms_iter_bare: Some(ms.iter_pk()),
             ms_iter_legacy: None,
             ms_iter_segwit: None,
+            #[cfg(feature = "secp256k1")]
             ms_iter_taproot: None,
             sorted_multi: None,
         }
@@ -45,10 +54,12 @@ impl<'desc, Pk: MiniscriptKey> PkIter<'desc, Pk> {
     pub(super) fn from_miniscript_legacy(ms: &'desc Miniscript<Pk, Legacy>) -> Self {
         Self {
             single_key: None,
+            #[cfg(feature = "secp256k1")]
             taptree_iter: None,
             ms_iter_bare: None,
             ms_iter_legacy: Some(ms.iter_pk()),
             ms_iter_segwit: None,
+            #[cfg(feature = "secp256k1")]
             ms_iter_taproot: None,
             sorted_multi: None,
         }
@@ -57,10 +68,12 @@ impl<'desc, Pk: MiniscriptKey> PkIter<'desc, Pk> {
     pub(super) fn from_miniscript_segwit(ms: &'desc Miniscript<Pk, Segwitv0>) -> Self {
         Self {
             single_key: None,
+            #[cfg(feature = "secp256k1")]
             taptree_iter: None,
             ms_iter_bare: None,
             ms_iter_legacy: None,
             ms_iter_segwit: Some(ms.iter_pk()),
+            #[cfg(feature = "secp256k1")]
             ms_iter_taproot: None,
             sorted_multi: None,
         }
@@ -69,15 +82,18 @@ impl<'desc, Pk: MiniscriptKey> PkIter<'desc, Pk> {
     pub(super) fn from_sortedmulti(sm: &'desc [Pk]) -> Self {
         Self {
             single_key: None,
+            #[cfg(feature = "secp256k1")]
             taptree_iter: None,
             ms_iter_bare: None,
             ms_iter_legacy: None,
             ms_iter_segwit: None,
+            #[cfg(feature = "secp256k1")]
             ms_iter_taproot: None,
             sorted_multi: Some(sm.iter()),
         }
     }
 
+    #[cfg(feature = "secp256k1")]
     pub(super) fn from_tr(tr: &'desc Tr<Pk>) -> Self {
         Self {
             single_key: Some(tr.internal_key().clone()),
@@ -104,6 +120,7 @@ impl<'desc, Pk: MiniscriptKey> Iterator for PkIter<'desc, Pk> {
         }
 
         // Then attempt to yield something from the Taptree iterator.
+        #[cfg(feature = "secp256k1")]
         loop {
             if let Some(item) = self.ms_iter_taproot.as_mut().and_then(Iterator::next) {
                 return Some(item);

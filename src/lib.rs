@@ -41,6 +41,7 @@
 //! ## Deriving an address from a descriptor
 //!
 //! ```rust
+//! # #[cfg(feature = "secp256k1")] {
 //! use std::str::FromStr;
 //!
 //! let desc = miniscript::Descriptor::<bitcoin::PublicKey>::from_str("\
@@ -70,6 +71,7 @@
 //! // = 1 + 73 = 74 WU
 //! // Expected satisfaction weight: 140 + 74 + 74 = 288
 //! assert_eq!(desc.max_weight_to_satisfy().unwrap().to_wu(), 288);
+//! # }
 //! ```
 //!
 
@@ -116,16 +118,19 @@ mod blanket_traits;
 pub mod descriptor;
 mod error;
 pub mod expression;
+#[cfg(feature = "secp256k1")]
 pub mod interpreter;
 pub mod iter;
 pub mod miniscript;
+#[cfg(feature = "secp256k1")]
 pub mod plan;
 pub mod policy;
 mod primitives;
+#[cfg(feature = "secp256k1")]
 pub mod psbt;
 pub mod pubkey;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "secp256k1"))]
 mod test_utils;
 mod util;
 
@@ -134,19 +139,25 @@ use core::{fmt, hash, str};
 use bitcoin::hashes::{hash160, ripemd160, sha256, Hash};
 
 pub use crate::blanket_traits::FromStrKey;
-pub use crate::descriptor::{DefiniteDescriptorKey, Descriptor, DescriptorPublicKey};
+pub use crate::descriptor::Descriptor;
+#[cfg(feature = "secp256k1")]
+pub use crate::descriptor::{DefiniteDescriptorKey, DescriptorPublicKey};
 pub use crate::error::ParseError;
 pub use crate::expression::{ParseNumError, ParseThresholdError, ParseTreeError};
+#[cfg(feature = "secp256k1")]
 pub use crate::interpreter::Interpreter;
 pub use crate::miniscript::analyzable::{AnalysisError, ExtParams};
 pub use crate::miniscript::context::{BareCtx, Legacy, ScriptContext, Segwitv0, SigType, Tap};
 pub use crate::miniscript::decode::Terminal;
+#[cfg(feature = "secp256k1")]
 pub use crate::miniscript::satisfy::{Preimage32, Satisfier};
 pub use crate::miniscript::{hash256, Miniscript};
 use crate::prelude::*;
 pub use crate::primitives::absolute_locktime::{AbsLockTime, AbsLockTimeError};
 pub use crate::primitives::relative_locktime::{RelLockTime, RelLockTimeError};
 pub use crate::primitives::threshold::{Threshold, ThresholdError};
+#[cfg(not(feature = "secp256k1"))]
+pub use crate::pubkey::{SerializedPublicKey, SerializedXOnlyPublicKey};
 
 /// Public key trait which can be converted to Hash type
 pub trait MiniscriptKey: Clone + Eq + Ord + fmt::Debug + fmt::Display + hash::Hash {
@@ -179,6 +190,7 @@ pub trait MiniscriptKey: Clone + Eq + Ord + fmt::Debug + fmt::Display + hash::Ha
     type Hash160: Clone + Eq + Ord + fmt::Display + fmt::Debug + hash::Hash;
 }
 
+#[cfg(feature = "secp256k1")]
 impl MiniscriptKey for bitcoin::secp256k1::PublicKey {
     type Sha256 = sha256::Hash;
     type Hash256 = hash256::Hash;
@@ -186,6 +198,7 @@ impl MiniscriptKey for bitcoin::secp256k1::PublicKey {
     type Hash160 = hash160::Hash;
 }
 
+#[cfg(feature = "secp256k1")]
 impl MiniscriptKey for bitcoin::PublicKey {
     /// Returns the compressed-ness of the underlying secp256k1 key.
     fn is_uncompressed(&self) -> bool { !self.compressed }
@@ -196,6 +209,7 @@ impl MiniscriptKey for bitcoin::PublicKey {
     type Hash160 = hash160::Hash;
 }
 
+#[cfg(feature = "secp256k1")]
 impl MiniscriptKey for bitcoin::secp256k1::XOnlyPublicKey {
     type Sha256 = sha256::Hash;
     type Hash256 = hash256::Hash;
@@ -247,6 +261,7 @@ pub trait ToPublicKey: MiniscriptKey {
     fn to_hash160(hash: &<Self as MiniscriptKey>::Hash160) -> hash160::Hash;
 }
 
+#[cfg(feature = "secp256k1")]
 impl ToPublicKey for bitcoin::PublicKey {
     fn to_public_key(&self) -> bitcoin::PublicKey { *self }
 
@@ -259,6 +274,7 @@ impl ToPublicKey for bitcoin::PublicKey {
     fn to_hash160(hash: &hash160::Hash) -> hash160::Hash { *hash }
 }
 
+#[cfg(feature = "secp256k1")]
 impl ToPublicKey for bitcoin::secp256k1::PublicKey {
     fn to_public_key(&self) -> bitcoin::PublicKey { bitcoin::PublicKey::new(*self) }
 
@@ -271,6 +287,7 @@ impl ToPublicKey for bitcoin::secp256k1::PublicKey {
     fn to_hash160(hash: &hash160::Hash) -> hash160::Hash { *hash }
 }
 
+#[cfg(feature = "secp256k1")]
 impl ToPublicKey for bitcoin::secp256k1::XOnlyPublicKey {
     fn to_public_key(&self) -> bitcoin::PublicKey {
         // This code should never be used.
@@ -458,6 +475,7 @@ pub enum Error {
     /// Typechecking failed
     TypeCheck(miniscript::types::Error),
     /// Forward-secp related errors
+    #[cfg(feature = "secp256k1")]
     Secp(bitcoin::secp256k1::Error),
     #[cfg(feature = "compiler")]
     /// Compiler related errors
@@ -469,6 +487,7 @@ pub enum Error {
     /// Forward script context related errors
     ContextError(miniscript::context::ScriptContextError),
     /// Tried to construct a Taproot tree which was too deep.
+    #[cfg(feature = "secp256k1")]
     TapTreeDepthError(crate::descriptor::TapTreeDepthError),
     /// Recursion depth exceeded when parsing policy/miniscript from string
     MaxRecursiveDepthExceeded,
@@ -522,8 +541,10 @@ impl fmt::Display for Error {
             Error::MissingSig(ref pk) => write!(f, "missing signature for key {:?}", pk),
             Error::CouldNotSatisfy => f.write_str("could not satisfy"),
             Error::TypeCheck(ref e) => write!(f, "typecheck: {}", e),
+            #[cfg(feature = "secp256k1")]
             Error::Secp(ref e) => fmt::Display::fmt(e, f),
             Error::ContextError(ref e) => fmt::Display::fmt(e, f),
+            #[cfg(feature = "secp256k1")]
             Error::TapTreeDepthError(ref e) => fmt::Display::fmt(e, f),
             #[cfg(feature = "compiler")]
             Error::CompilerError(ref e) => fmt::Display::fmt(e, f),
@@ -580,12 +601,14 @@ impl std::error::Error for Error {
             ScriptLexer(e) => Some(e),
             AddrError(e) => Some(e),
             AddrP2shError(e) => Some(e),
+            #[cfg(feature = "secp256k1")]
             Secp(e) => Some(e),
             #[cfg(feature = "compiler")]
             CompilerError(e) => Some(e),
             ConcretePolicy(e) => Some(e),
             LiftError(e) => Some(e),
             ContextError(e) => Some(e),
+            #[cfg(feature = "secp256k1")]
             TapTreeDepthError(e) => Some(e),
             AnalysisError(e) => Some(e),
             PubKeyCtxError(e, _) => Some(e),
@@ -614,6 +637,7 @@ impl From<policy::LiftError> for Error {
 }
 
 #[doc(hidden)]
+#[cfg(feature = "secp256k1")]
 impl From<crate::descriptor::TapTreeDepthError> for Error {
     fn from(e: crate::descriptor::TapTreeDepthError) -> Error { Error::TapTreeDepthError(e) }
 }
@@ -629,6 +653,7 @@ impl From<miniscript::analyzable::AnalysisError> for Error {
 }
 
 #[doc(hidden)]
+#[cfg(feature = "secp256k1")]
 impl From<bitcoin::secp256k1::Error> for Error {
     fn from(e: bitcoin::secp256k1::Error) -> Error { Error::Secp(e) }
 }
@@ -679,10 +704,10 @@ fn push_opcode_size(script_size: usize) -> usize {
 }
 
 /// Helper function used by tests
-#[cfg(test)]
+#[cfg(all(test, feature = "secp256k1"))]
 fn hex_script(s: &str) -> bitcoin::ScriptBuf { bitcoin::ScriptBuf::from_hex(s).unwrap() }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "secp256k1"))]
 mod tests {
     use core::str::FromStr;
 
@@ -736,7 +761,7 @@ mod tests {
 mod prelude {
     // Mutex implementation from LDK
     // https://github.com/lightningdevkit/rust-lightning/blob/9bdce47f0e0516e37c89c09f1975dfc06b5870b1/lightning-invoice/src/sync.rs
-    #[cfg(all(not(feature = "std"), not(test)))]
+    #[cfg(all(not(feature = "std"), not(test), feature = "secp256k1"))]
     mod mutex {
         use core::cell::{RefCell, RefMut};
         use core::ops::{Deref, DerefMut};
@@ -798,6 +823,6 @@ mod prelude {
         vec::Vec,
     };
 
-    #[cfg(all(not(feature = "std"), not(test)))]
+    #[cfg(all(not(feature = "std"), not(test), feature = "secp256k1"))]
     pub use self::mutex::Mutex;
 }

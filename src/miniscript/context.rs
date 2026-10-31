@@ -786,7 +786,9 @@ impl ScriptContext for BareCtx {
 /// scripts off of the blockchain without doing any sanity checks on them.
 /// This context should *NOT* be used unless you know what you are doing.
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[cfg(feature = "secp256k1")]
 pub enum NoChecks {}
+#[cfg(feature = "secp256k1")]
 impl ScriptContext for NoChecks {
     // todo: When adding support for interpreter, we need a enum with all supported keys here
     type Key = crate::pubkey::PublicKey;
@@ -875,7 +877,9 @@ impl ScriptContext for NoChecks {
 
 /// Private Mod to prevent downstream from implementing this public trait
 mod private {
-    use super::{BareCtx, Legacy, NoChecks, Segwitv0, Tap};
+    #[cfg(feature = "secp256k1")]
+    use super::NoChecks;
+    use super::{BareCtx, Legacy, Segwitv0, Tap};
 
     pub trait Sealed {}
 
@@ -884,5 +888,6 @@ mod private {
     impl Sealed for Legacy {}
     impl Sealed for Segwitv0 {}
     impl Sealed for Tap {}
+    #[cfg(feature = "secp256k1")]
     impl Sealed for NoChecks {}
 }

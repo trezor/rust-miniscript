@@ -63,6 +63,7 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
     /// # Examples
     ///
     /// ```
+    /// # #[cfg(feature = "secp256k1")] {
     /// use std::collections::HashMap;
     /// use std::str::FromStr;
     /// use miniscript::bitcoin::{hashes::hash160, PublicKey};
@@ -101,6 +102,7 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
     ///
     /// let expected_policy = Policy::from_str(&format!("and(pk({}),pk({}))", alice_pk, bob_pk)).unwrap();
     /// assert_eq!(real_policy, expected_policy);
+    /// # }
     /// ```
     pub fn translate_pk<T>(&self, t: &mut T) -> Result<Policy<T::TargetPk>, T::Error>
     where
@@ -682,6 +684,7 @@ impl<'a, Pk: MiniscriptKey> TreeLike for &'a Arc<Policy<Pk>> {
 mod tests {
     use core::str::FromStr as _;
 
+    #[cfg(feature = "secp256k1")]
     use bitcoin::PublicKey;
 
     use super::*;
@@ -689,6 +692,7 @@ mod tests {
     type StringPolicy = Policy<String>;
 
     #[test]
+    #[cfg(feature = "secp256k1")]
     fn parse_policy_err() {
         assert!(StringPolicy::from_str("(").is_err());
         assert!(StringPolicy::from_str("(x()").is_err());

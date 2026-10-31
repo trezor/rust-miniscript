@@ -14,18 +14,27 @@ use bitcoin::script::PushBytes;
 use bitcoin::{script, Address, Network, ScriptBuf, Weight};
 
 use super::{SortedMultiVec, Wpkh, Wsh};
-use crate::descriptor::{write_descriptor, DefiniteDescriptorKey};
+use crate::descriptor::write_descriptor;
+#[cfg(feature = "secp256k1")]
+use crate::descriptor::DefiniteDescriptorKey;
 use crate::expression::{self, FromTree};
 use crate::miniscript::context::ScriptContext;
 use crate::miniscript::limits::MAX_PUBKEYS_PER_MULTISIG;
+#[cfg(feature = "secp256k1")]
 use crate::miniscript::satisfy::{Placeholder, Satisfaction};
+#[cfg(feature = "secp256k1")]
 use crate::plan::AssetProvider;
 use crate::policy::{semantic, Liftable};
+#[cfg(feature = "secp256k1")]
 use crate::prelude::*;
-use crate::util::{varint_len, witness_to_scriptsig};
+use crate::util::varint_len;
+#[cfg(feature = "secp256k1")]
+use crate::util::witness_to_scriptsig;
+#[cfg(feature = "secp256k1")]
+use crate::Satisfier;
 use crate::{
-    push_opcode_size, Error, ForEachKey, FromStrKey, Legacy, Miniscript, MiniscriptKey, Satisfier,
-    Segwitv0, Threshold, ToPublicKey, TranslateErr, Translator,
+    push_opcode_size, Error, ForEachKey, FromStrKey, Legacy, Miniscript, MiniscriptKey, Segwitv0,
+    Threshold, ToPublicKey, TranslateErr, Translator,
 };
 
 /// A Legacy p2sh Descriptor
@@ -356,6 +365,7 @@ impl<Pk: MiniscriptKey + ToPublicKey> Sh<Pk> {
     /// Returns satisfying non-malleable witness and scriptSig with minimum
     /// weight to spend an output controlled by the given descriptor if it is
     /// possible to construct one using the `satisfier`.
+    #[cfg(feature = "secp256k1")]
     pub fn get_satisfaction<S>(&self, satisfier: S) -> Result<(Vec<Vec<u8>>, ScriptBuf), Error>
     where
         S: Satisfier<Pk>,
@@ -390,6 +400,7 @@ impl<Pk: MiniscriptKey + ToPublicKey> Sh<Pk> {
     /// Returns satisfying, possibly malleable, witness and scriptSig with
     /// minimum weight to spend an output controlled by the given descriptor if
     /// it is possible to construct one using the `satisfier`.
+    #[cfg(feature = "secp256k1")]
     pub fn get_satisfaction_mall<S>(&self, satisfier: S) -> Result<(Vec<Vec<u8>>, ScriptBuf), Error>
     where
         S: Satisfier<Pk>,
@@ -412,6 +423,7 @@ impl<Pk: MiniscriptKey + ToPublicKey> Sh<Pk> {
     }
 }
 
+#[cfg(feature = "secp256k1")]
 impl Sh<DefiniteDescriptorKey> {
     /// Returns a plan if the provided assets are sufficient to produce a non-malleable satisfaction
     pub fn plan_satisfaction<P>(

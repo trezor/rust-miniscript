@@ -181,6 +181,7 @@ impl<Pk: MiniscriptKey> Liftable<Pk> for Descriptor<Pk> {
             Descriptor::Wpkh(ref wpkh) => wpkh.lift(),
             Descriptor::Wsh(ref wsh) => wsh.lift(),
             Descriptor::Sh(ref sh) => sh.lift(),
+            #[cfg(feature = "secp256k1")]
             Descriptor::Tr(ref tr) => tr.lift(),
         }
     }
@@ -236,8 +237,10 @@ mod tests {
     use super::*;
     #[cfg(feature = "compiler")]
     use crate::descriptor::Tr;
+    #[cfg(feature = "secp256k1")]
     use crate::miniscript::context::Segwitv0;
     use crate::prelude::*;
+    #[cfg(feature = "secp256k1")]
     use crate::RelLockTime;
     #[cfg(feature = "compiler")]
     use crate::{descriptor::TapTree, Tap};
@@ -339,6 +342,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "secp256k1")]
     fn lift_andor() {
         let key_a: bitcoin::PublicKey =
             "02d7924d4f7d43ea965a465ae3095ff41131e5946f3c85f79e44adbcf8e27e080e"
