@@ -14,12 +14,17 @@ use crate::blanket_traits::FromStrKey;
 use crate::miniscript::context::ScriptContext;
 use crate::miniscript::decode::Terminal;
 use crate::miniscript::limits::MAX_PUBKEYS_PER_MULTISIG;
+#[cfg(feature = "secp256k1")]
 use crate::miniscript::satisfy::{Placeholder, Satisfaction};
+#[cfg(feature = "secp256k1")]
 use crate::plan::AssetProvider;
+#[cfg(feature = "secp256k1")]
 use crate::prelude::*;
 use crate::sync::Arc;
+#[cfg(feature = "secp256k1")]
+use crate::Satisfier;
 use crate::{
-    expression, policy, script_num_size, Error, ForEachKey, Miniscript, MiniscriptKey, Satisfier,
+    expression, policy, pubkey, script_num_size, Error, ForEachKey, Miniscript, MiniscriptKey,
     Threshold, ToPublicKey, TranslateErr, Translator,
 };
 
@@ -126,10 +131,8 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> SortedMultiVec<Pk, Ctx> {
         let mut thresh = self.inner.clone();
         // Sort pubkeys lexicographically according to BIP 67
         thresh.data_mut().sort_by(|a, b| {
-            a.to_public_key()
-                .inner
-                .serialize()
-                .partial_cmp(&b.to_public_key().inner.serialize())
+            pubkey::sort_key(&a.to_public_key())
+                .partial_cmp(&pubkey::sort_key(&b.to_public_key()))
                 .unwrap()
         });
         Terminal::Multi(thresh)
@@ -147,6 +150,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> SortedMultiVec<Pk, Ctx> {
 
     /// Attempt to produce a satisfying witness for the
     /// witness script represented by the parse tree
+    #[cfg(feature = "secp256k1")]
     pub fn satisfy<S>(&self, satisfier: S) -> Result<Vec<Vec<u8>>, Error>
     where
         Pk: ToPublicKey,
@@ -157,6 +161,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> SortedMultiVec<Pk, Ctx> {
     }
 
     /// Attempt to produce a witness template given the assets available
+    #[cfg(feature = "secp256k1")]
     pub fn build_template<P>(&self, provider: &P) -> Satisfaction<Placeholder<Pk>>
     where
         Pk: ToPublicKey,
@@ -221,7 +226,7 @@ impl<Pk: MiniscriptKey, Ctx: ScriptContext> fmt::Display for SortedMultiVec<Pk, 
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "secp256k1"))]
 mod tests {
     use core::str::FromStr as _;
 
