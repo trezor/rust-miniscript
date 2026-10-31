@@ -394,7 +394,7 @@ impl<Pk: FromStrKey> crate::expression::FromTree for Tr<Pk> {
                 script.ext_check(&crate::ExtParams::insane())?;
                 // FIXME hack for https://github.com/rust-bitcoin/rust-miniscript/issues/734
                 if script.ty.corr.base != crate::miniscript::types::Base::B {
-                    return Err(Error::NonTopLevel(format!("{:?}", script)));
+                    return Err(Error::NonTopLevel);
                 };
 
                 tree_builder.push_leaf(script);

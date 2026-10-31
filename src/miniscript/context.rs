@@ -14,7 +14,6 @@ use crate::miniscript::limits::{
     MAX_STACK_SIZE, MAX_STANDARD_P2WSH_SCRIPT_SIZE, MAX_STANDARD_P2WSH_STACK_ITEMS,
 };
 use crate::miniscript::types;
-use crate::prelude::*;
 use crate::{hash256, Error, ForEachKey, Miniscript, MiniscriptKey, Terminal};
 
 /// Error for Script Context
@@ -28,10 +27,10 @@ pub enum ScriptContextError {
     MalleableDupIf,
     /// Only Compressed keys allowed under current descriptor
     /// Segwitv0 fragments do not allow uncompressed pubkeys
-    CompressedOnly(String),
+    CompressedOnly,
     /// XOnly keys are only allowed in Tap context
     /// The first element is key, and second element is current script context
-    XOnlyKeysNotAllowed(String, &'static str),
+    XOnlyKeysNotAllowed(&'static str),
     /// Tapscript descriptors cannot contain uncompressed keys
     /// Tap context can contain compressed or xonly
     UncompressedKeysNotAllowed,
@@ -71,8 +70,8 @@ impl error::Error for ScriptContextError {
         match self {
             MalleableOrI
             | MalleableDupIf
-            | CompressedOnly(_)
-            | XOnlyKeysNotAllowed(_, _)
+            | CompressedOnly
+            | XOnlyKeysNotAllowed(_)
             | UncompressedKeysNotAllowed
             | MaxWitnessItemsExceeded { .. }
             | MaxOpCountExceeded { .. }
@@ -95,11 +94,11 @@ impl fmt::Display for ScriptContextError {
             ScriptContextError::MalleableDupIf => {
                 write!(f, "DupIf is malleable under Legacy rules")
             }
-            ScriptContextError::CompressedOnly(ref pk) => {
-                write!(f, "Only Compressed pubkeys are allowed in segwit context. Found {}", pk)
+            ScriptContextError::CompressedOnly => {
+                write!(f, "Only Compressed pubkeys are allowed in segwit context")
             }
-            ScriptContextError::XOnlyKeysNotAllowed(ref pk, ref ctx) => {
-                write!(f, "x-only key {} not allowed in {}", pk, ctx)
+            ScriptContextError::XOnlyKeysNotAllowed(ref ctx) => {
+                write!(f, "x-only key not allowed in {}", ctx)
             }
             ScriptContextError::UncompressedKeysNotAllowed => {
                 write!(f, "uncompressed keys cannot be used in Taproot descriptors.")
@@ -272,7 +271,7 @@ where
     /// Check whether the top-level is type B
     fn top_level_type_check<Pk: MiniscriptKey>(ms: &Miniscript<Pk, Self>) -> Result<(), Error> {
         if ms.ty.corr.base != types::Base::B {
-            return Err(Error::NonTopLevel(format!("{:?}", ms)));
+            return Err(Error::NonTopLevel);
         }
         // (Ab)use `for_each_key` to record the number of derivation paths a multipath key has.
         #[derive(PartialEq)]
@@ -372,7 +371,7 @@ impl ScriptContext for Legacy {
     // Only compressed and uncompressed public keys are allowed in Legacy context
     fn check_pk<Pk: MiniscriptKey>(pk: &Pk) -> Result<(), ScriptContextError> {
         if pk.is_x_only_key() {
-            Err(ScriptContextError::XOnlyKeysNotAllowed(pk.to_string(), Self::name_str()))
+            Err(ScriptContextError::XOnlyKeysNotAllowed(Self::name_str()))
         } else {
             Ok(())
         }
@@ -476,7 +475,7 @@ impl ScriptContext for Segwitv0 {
         if pk.is_uncompressed() {
             Err(ScriptContextError::UncompressedKeysNotAllowed)
         } else if pk.is_x_only_key() {
-            Err(ScriptContextError::XOnlyKeysNotAllowed(pk.to_string(), Self::name_str()))
+            Err(ScriptContextError::XOnlyKeysNotAllowed(Self::name_str()))
         } else {
             Ok(())
         }
@@ -698,7 +697,7 @@ impl ScriptContext for BareCtx {
     // No x-only keys in Bare context
     fn check_pk<Pk: MiniscriptKey>(pk: &Pk) -> Result<(), ScriptContextError> {
         if pk.is_x_only_key() {
-            Err(ScriptContextError::XOnlyKeysNotAllowed(pk.to_string(), Self::name_str()))
+            Err(ScriptContextError::XOnlyKeysNotAllowed(Self::name_str()))
         } else {
             Ok(())
         }
@@ -857,7 +856,7 @@ impl ScriptContext for NoChecks {
 
     fn top_level_type_check<Pk: MiniscriptKey>(ms: &Miniscript<Pk, Self>) -> Result<(), Error> {
         if ms.ty.corr.base != types::Base::B {
-            return Err(Error::NonTopLevel(format!("{:?}", ms)));
+            return Err(Error::NonTopLevel);
         }
         Ok(())
     }
