@@ -385,7 +385,7 @@ impl<'s> TreeIterItem<'s> {
     {
         self.verify_n_children(description, 0..=0)
             .map_err(ParseError::Tree)?;
-        T::from_str(self.name()).map_err(ParseError::box_from_str)
+        T::from_str(self.name()).map_err(|_| ParseError::InvalidKey)
     }
 
     /// Check that a tree node has exactly one child, which is a terminal.

@@ -541,10 +541,10 @@ impl<Ctx: ScriptContext> Miniscript<Ctx::Key, Ctx> {
         Ctx::check_global_validity(&top)?;
         let type_check = types::Type::type_check(&top.node)?;
         if type_check.corr.base != types::Base::B {
-            return Err(Error::NonTopLevel(format!("{:?}", top)));
+            return Err(Error::NonTopLevel);
         };
-        if let Some(leading) = iter.next() {
-            Err(Error::Trailing(leading.to_string()))
+        if let Some(_leading) = iter.next() {
+            Err(Error::Trailing)
         } else {
             top.ext_check(ext)?;
             Ok(top)
@@ -818,7 +818,7 @@ impl<Pk: FromStrKey, Ctx: ScriptContext> Miniscript<Pk, Ctx> {
         ms.ext_check(ext)?;
 
         if ms.ty.corr.base != types::Base::B {
-            Err(Error::NonTopLevel(format!("{:?}", ms)))
+            Err(Error::NonTopLevel)
         } else {
             Ok(ms)
         }

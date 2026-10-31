@@ -280,7 +280,7 @@ macro_rules! match_token {
             $(
                 Some($first) => match_token!($tokens $(,$rest)* => $sub,),
             )*
-            Some(other) => return Err(Error::Unexpected(other.to_string())),
+            Some(_other) => return Err(Error::Unexpected),
             None => return Err(Error::UnexpectedStart),
         }
     };

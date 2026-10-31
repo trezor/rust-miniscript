@@ -730,14 +730,14 @@ impl Descriptor<DescriptorPublicKey> {
                 Ok(sk) => {
                     let pk = key_map
                         .insert(secp, sk)
-                        .map_err(|e| Error::Unexpected(e.to_string()))?;
+                        .map_err(|_e| Error::Unexpected)?;
                     Ok(pk)
                 }
                 Err(_) => {
                     // try to parse as a public key if parsing as a secret key failed
                     let pk = s
                         .parse()
-                        .map_err(|e| Error::Parse(ParseError::box_from_str(e)))?;
+                        .map_err(|_e| Error::Parse(ParseError::InvalidKey))?;
                     Ok(pk)
                 }
             }
@@ -758,25 +758,25 @@ impl Descriptor<DescriptorPublicKey> {
             fn sha256(&mut self, sha256: &String) -> Result<sha256::Hash, Error> {
                 sha256
                     .parse()
-                    .map_err(|e| Error::Parse(ParseError::box_from_str(e)))
+                    .map_err(|_| Error::Parse(ParseError::InvalidHash))
             }
 
             fn hash256(&mut self, hash256: &String) -> Result<hash256::Hash, Error> {
                 hash256
                     .parse()
-                    .map_err(|e| Error::Parse(ParseError::box_from_str(e)))
+                    .map_err(|_| Error::Parse(ParseError::InvalidHash))
             }
 
             fn ripemd160(&mut self, ripemd160: &String) -> Result<ripemd160::Hash, Error> {
                 ripemd160
                     .parse()
-                    .map_err(|e| Error::Parse(ParseError::box_from_str(e)))
+                    .map_err(|_| Error::Parse(ParseError::InvalidHash))
             }
 
             fn hash160(&mut self, hash160: &String) -> Result<hash160::Hash, Error> {
                 hash160
                     .parse()
-                    .map_err(|e| Error::Parse(ParseError::box_from_str(e)))
+                    .map_err(|_| Error::Parse(ParseError::InvalidHash))
             }
         }
 

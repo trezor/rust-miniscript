@@ -328,7 +328,7 @@ impl<Pk: MiniscriptKey> Wpkh<Pk> {
     /// Checks whether the descriptor is safe.
     pub fn sanity_check(&self) -> Result<(), Error> {
         if self.pk.is_uncompressed() {
-            Err(Error::ContextError(ScriptContextError::CompressedOnly(self.pk.to_string())))
+            Err(Error::ContextError(ScriptContextError::CompressedOnly))
         } else {
             Ok(())
         }

@@ -443,19 +443,19 @@ pub enum Error {
     /// While parsing backward, hit beginning of script
     UnexpectedStart,
     /// Got something we were not expecting
-    Unexpected(String),
+    Unexpected,
     /// Encountered a wrapping character that we don't recognize
     UnknownWrapper(char),
     /// Parsed a miniscript and the result was not of type T
-    NonTopLevel(String),
+    NonTopLevel,
     /// Parsed a miniscript but there were more script opcodes after it
-    Trailing(String),
+    Trailing,
     /// Could not satisfy a script (fragment) because of a missing signature
     MissingSig(bitcoin::PublicKey),
     /// General failure to satisfy
     CouldNotSatisfy,
     /// Typechecking failed
-    TypeCheck(String),
+    TypeCheck(miniscript::types::Error),
     /// Forward-secp related errors
     Secp(bitcoin::secp256k1::Error),
     #[cfg(feature = "compiler")]
@@ -514,10 +514,10 @@ impl fmt::Display for Error {
             Error::AddrError(ref e) => fmt::Display::fmt(e, f),
             Error::AddrP2shError(ref e) => fmt::Display::fmt(e, f),
             Error::UnexpectedStart => f.write_str("unexpected start of script"),
-            Error::Unexpected(ref s) => write!(f, "unexpected «{}»", s),
+            Error::Unexpected => write!(f, "unexpected token"),
             Error::UnknownWrapper(ch) => write!(f, "unknown wrapper «{}:»", ch),
-            Error::NonTopLevel(ref s) => write!(f, "non-T miniscript: {}", s),
-            Error::Trailing(ref s) => write!(f, "trailing tokens: {}", s),
+            Error::NonTopLevel => write!(f, "non-T miniscript"),
+            Error::Trailing => write!(f, "trailing tokens"),
             Error::MissingSig(ref pk) => write!(f, "missing signature for key {:?}", pk),
             Error::CouldNotSatisfy => f.write_str("could not satisfy"),
             Error::TypeCheck(ref e) => write!(f, "typecheck: {}", e),
@@ -563,10 +563,10 @@ impl std::error::Error for Error {
 
         match self {
             UnexpectedStart
-            | Unexpected(_)
+            | Unexpected
             | UnknownWrapper(_)
-            | NonTopLevel(_)
-            | Trailing(_)
+            | NonTopLevel
+            | Trailing
             | MissingSig(_)
             | CouldNotSatisfy
             | TypeCheck(_)
@@ -604,7 +604,7 @@ impl From<miniscript::lex::Error> for Error {
 
 #[doc(hidden)]
 impl From<miniscript::types::Error> for Error {
-    fn from(e: miniscript::types::Error) -> Error { Error::TypeCheck(e.to_string()) }
+    fn from(e: miniscript::types::Error) -> Error { Error::TypeCheck(e) }
 }
 
 #[doc(hidden)]
