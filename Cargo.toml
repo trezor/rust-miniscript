@@ -25,7 +25,6 @@ base64 = ["secp256k1", "bitcoin/base64"]
 [dependencies]
 bech32 = { version = "0.11.0", default-features = false, features = ["alloc"] }
 bitcoin = { git = "https://github.com/trezor/rust-bitcoin", rev = "574af27f6f3c15a7a1da864124a1bb789f3847f7", default-features = false }
-hex = { package = "hex-conservative", default-features = false, features = ["alloc"], version = "1.0.0" }
 
 serde = { version = "1.0.103", optional = true }
 
@@ -33,6 +32,7 @@ serde = { version = "1.0.103", optional = true }
 serde_test = "1.0.147"
 bitcoin = { git = "https://github.com/trezor/rust-bitcoin", rev = "574af27f6f3c15a7a1da864124a1bb789f3847f7", features = ["base64"] }
 secp256k1 = {version = "0.29.0", features = ["rand-std"]}
+hex = { package = "hex-conservative", default-features = false, features = ["alloc"], version = "1.0.0" }
 
 [[test]]
 name = "bip-174"  # `tests/bip-174.rs` needs secp256k1
